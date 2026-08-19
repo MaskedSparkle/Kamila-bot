@@ -74,8 +74,12 @@ class Kamila(commands.Bot):
         self.suspicious_users = []
     
     async def setup_hook(self):
-        await self.tree.sync()
-        print(f"🤖 Logged in as {self.user.name}")
+        # IDE ÍRD BE A SAJÁT SZERVERED ID-JÁT A KÖVETKEZŐ SORBA:
+        GUILD_ID = discord.Object(id=1539413724828541089) 
+        
+        self.tree.copy_global_to(guild=GUILD_ID)
+        await self.tree.sync(guild=GUILD_ID)
+        print(f"🤖 Logged in as {self.user.name} and synced guild commands!")
     
     async def on_message(self, message):
         if message.author == self.user or (hasattr(message.author, 'bot') and message.author.bot):
