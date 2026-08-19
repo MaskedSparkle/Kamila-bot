@@ -18,8 +18,8 @@ class Kamila(commands.Bot):
         self.ADMIN_CHANNEL_ID = 1539415065873350686
         self.WARNING_THRESHOLD = 3
         
-        # ✅ HOZZÁADVA: Kicked users tracking (memória)
-        self.kicked_users = set()  # ID-k tárolása
+        # Kirúgottak tracking (memória)
+        self.kicked_users = set()
         
         # NSFW linkek
         self.NSFW_PATTERNS = [
@@ -131,16 +131,14 @@ class Kamila(commands.Bot):
             await self.log_to_admin(f"❌ **Figyelmeztetés issued to {message.author.name}** - First violation: {', '.join(violations)}")
         
         elif self.user_warnings[user_id] == self.WARNING_THRESHOLD:
-            # ✅ Return ban system! Ha már kirúgták, most BAN lesz!
             if user_id in self.kicked_users:
-                await message.author.ban(reason="Return ban - Previously kicked")
+                await message.author.ban(reason="Return ban - Previously kicked!")
                 await self.log_to_admin(f"🚫 **RETURN BANNED {message.author.name}** - Previously kicked!")
             else:
                 await message.author.timeout(datetime.datetime.utcnow() + timedelta(hours=1))
                 await self.log_to_admin(f"🔇 **Timed out {message.author.name} for 1 hour** - Reached warning threshold")
         
         else:
-            # ✅ MEMORIZE - Kirúgás előtt!
             self.kicked_users.add(user_id)
             await message.author.kick(reason="Multiple rule violations")
             await self.log_to_admin(f"👢 **KICKED {message.author.name}** - Added to return ban list")
@@ -148,11 +146,11 @@ class Kamila(commands.Bot):
     @commands.Cog.listener()
     async def on_member_join(self, member):
         try:
-            # ✅ RETURN BAN CHECK! Ha visszajön a kirúgott!
+            # ✅ RETURN BAN CHECK!
             if str(member.id) in self.kicked_users:
                 await member.ban(reason="Return ban - Previously kicked and returned!")
                 await self.log_to_admin(f"🚫 **AUTO BANNED returning user {member.name}** - Was previously kicked!")
-                return  # Ne folytasd, már bannolva!
+                return
             
             account_age = datetime.datetime.now(datetime.timezone.utc) - member.created_at
             
@@ -238,6 +236,27 @@ class Kamila(commands.Bot):
             await ctx.send("ℹ️ No users in kick memory")
         else:
             await ctx.send(f"📋 **Kicked Users Memory ({len(self.kicked_users)})**:\n```\n{'\n'.join(self.kicked_users)}\n```")
+    
+    @commands.command()
+    async def unban(self, ctx, member: discord.Member):
+        """Feloldja a return ban-t! A felhasználó újra jöhet."""
+        if not ctx.author.guild_permissions.administrator:
+            await ctx.send("❌ Only admins can use this command!")
+            return
+        
+        user_id = str(member.id)
+        
+        if user_id in self.kicked_users:
+            self.kicked_users.remove(user_id)  # ✅ TÖRÖLVE A MEMÓRIÁBÓL!
+            await ctx.send(f"✅ **Return ban lifted for {member.name}** - Can rejoin now!")
+            await self.log_to_admin(f"🔓 **UNBANNED {member.name}** - Return ban removed by {ctx.author.name}")
+        else:
+            await ctx.send(f"ℹ️ {member.name} was not in return ban list.")
+    
+    @commands.command()
+    async def removekick(self, ctx, member: discord.Member):
+        """Alias az !unban parancshoz"""
+        await self.unban(ctx, member)
 
 if __name__ == "__main__":
     bot = Kamila()
