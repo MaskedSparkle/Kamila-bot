@@ -1,4 +1,5 @@
 import discord
+from discord import app_commands
 from discord.ext import commands
 import datetime
 import re
@@ -73,12 +74,10 @@ class Kamila(commands.Bot):
         self.suspicious_users = []
     
     async def setup_hook(self):
+        await self.tree.sync()
         print(f"🤖 Logged in as {self.user.name}")
     
     async def on_message(self, message):
-        # Először futtatjuk a parancsokat, hogy a !kicklist és társai működjenek
-        await self.process_commands(message)
-        
         if message.author == self.user or (hasattr(message.author, 'bot') and message.author.bot):
             return
         
@@ -201,56 +200,69 @@ class Kamila(commands.Bot):
         except Exception as e:
             print(f"Error logging to admin: {e}")
     
-    @commands.command()
-    async def warnings(self, ctx, member: discord.Member = None):
-        target = member or ctx.author
+    @app_commands.command(name="warnings", description="Megnézi egy felhasználó figyelmeztetéseit")
+    async def warnings(self, interaction: discord.Interaction, member: discord.Member = None):
+        target = member or interaction.user
         warn_count = self.user_warnings.get(str(target.id), 0)
-        await ctx.send(f"**Warnings for {target.name}: {warn_count}/{self.WARNING_THRESHOLD}**")
+        await interaction.response.send_message(f"**Warnings for {target.name}: {warn_count}/{self.WARNING_THRESHOLD}**")
     
-    @commands.command()
-    async def clearwarnings(self, ctx, member: discord.Member):
-        if not ctx.author.guild_permissions.administrator:
+    @app_commands.command(name="clearwarnings", description="Törli egy felhasználó figyelmeztetéseit")
+    async def clearwarnings(self, interaction: discord.Interaction, member: discord.Member):
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ Ehhez nincs jogod!", ephemeral=True)
             return
         
         self.user_warnings[str(member.id)] = 0
-        await ctx.send(f"✅ Cleared warnings for {member.name}")
+        await interaction.response.send_message(f"✅ Cleared warnings for {member.name}")
     
-    @commands.command()
-    async def statuscheck(self, ctx):
+    @app_commands.command(name="statuscheck", description="Megnézi a bot státuszát")
+    async def statuscheck(self, interaction: discord.Interaction):
         embed = discord.Embed(title="🤖 Bot Status", color=discord.Color.purple())
         embed.add_field(name="Users tracked", value=len(self.user_warnings), inline=True)
         embed.add_field(name="Kick memory", value=f"{len(self.kicked_users)}", inline=True)
         embed.add_field(name="Pending reports", value=len(self.suspicious_users), inline=True)
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     
-    @commands.command()
-    async def kicklist(self, ctx):
-        if not ctx.author.guild_permissions.administrator:
+    @app_commands.command(name="kicklist", description="Kilistázza a kickelt felhasználókat")
+    async def kicklist(self, interaction: discord.Interaction):
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ Ehhez nincs jogod!", ephemeral=True)
             return
         
         if len(self.kicked_users) == 0:
-            await ctx.send("ℹ️ No users in kick memory")
+            await interaction.response.send_message("ℹ️ No users in kick memory", ephemeral=True)
         else:
-            await ctx.send(f"📋 **Kicked Users Memory ({len(self.kicked_users)})**:\n```\n{'\n'.join(self.kicked_users)}\n```")
+            await interaction.response.send_message(f"📋 **Kicked Users Memory ({len(self.kicked_users)})**:\n```\n{'\n'.join(self.kicked_users)}\n```", ephemeral=True)
     
-    @commands.command()
-    async def unban(self, ctx, member: discord.Member):
-        if not ctx.author.guild_permissions.administrator:
-            await ctx.send("❌ Only admins can use this command!")
+    @app_commands.command(name="unban", description="Feloldja a visszatérési tiltást")
+    async def unban(self, interaction: discord.Interaction, member: discord.Member):
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ Only admins can use this command!", ephemeral=True)
             return
         
         user_id = str(member.id)
         
         if user_id in self.kicked_users:
             self.kicked_users.remove(user_id)
-            await ctx.send(f"✅ **Return ban lifted for {member.name}** - Can rejoin now!")
-            await self.log_to_admin(f"🔓 **UNBANNED {member.name}** - Return ban removed by {ctx.author.name}")
+            await interaction.response.send_message(f"✅ **Return ban lifted for {member.name}** - Can rejoin now!")
+            await self.log_to_admin(f"🔓 **UNBANNED {member.name}** - Return ban removed by {interaction.user.name}")
         else:
-            await ctx.send(f"ℹ️ {member.name} was not in return ban list.")
+            await interaction.response.send_message(f"ℹ️ {member.name} was not in return ban list.", ephemeral=True)
     
-    @commands.command()
-    async def removekick(self, ctx, member: discord.Member):
-        await self.unban(ctx, member)
+    @app_commands.command(name="removekick", description="Eltávolítja a felhasználót a kick memóriából")
+    async def removekick(self, interaction: discord.Interaction, member: discord.Member):
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ Only admins can use this command!", ephemeral=True)
+            return
+        
+        user_id = str(member.id)
+        
+        if user_id in self.kicked_users:
+            self.kicked_users.remove(user_id)
+            await interaction.response.send_message(f"✅ **Return ban lifted for {member.name}** - Can rejoin now!")
+            await self.log_to_admin(f"🔓 **UNBANNED {member.name}** - Return ban removed by {interaction.user.name}")
+        else:
+            await interaction.response.send_message(f"ℹ️ {member.name} was not in return ban list.", ephemeral=True)
 
 if __name__ == "__main__":
     bot = Kamila()
