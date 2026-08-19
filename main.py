@@ -16,7 +16,7 @@ class Kamila(commands.Bot):
         
         super().__init__(command_prefix='!', intents=intents)
         
-        self.ADMIN_CHANNEL_ID = 1539415065873350686
+        self.ADMIN_CHANNEL_ID = 1497294782786048020
         self.WARNING_THRESHOLD = 3
         
         self.kicked_users = set()
@@ -75,7 +75,7 @@ class Kamila(commands.Bot):
     
     async def setup_hook(self):
         try:
-            GUILD_ID = discord.Object(id=1539413724828541089)
+            GUILD_ID = discord.Object(id=1497272521735671810)
             self.tree.copy_global_to(guild=GUILD_ID)
             synced = await self.tree.sync(guild=GUILD_ID)
             print(f"✅ Sikeresen szinkronizálva {len(synced)} perjel parancs erre a szerverre!")
@@ -274,5 +274,6 @@ class Kamila(commands.Bot):
 
 if __name__ == "__main__":
     bot = Kamila()
-    token = "MTUzOTQxMjk4NTk2NDEzODY1Ng.G5S0IK.6XsadiBTy1fadgoiZ27VCKbCEyrpq_JVtat20A"
+    # Ide tedd be a saját tokenedet (vagy használj környezeti változót)
+    token = "MTUzOTQxMjk4NTk2NDEzODY1Ng.GWU26I.GWwnfTcvD1skLsJOn-_5Wkx2SFK7BAw3JFyiuA" 
     bot.run(token)
