@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import datetime
 import re
+import os
 
 class Kamila(commands.Bot):
     def __init__(self):
@@ -16,12 +17,51 @@ class Kamila(commands.Bot):
         self.ADMIN_CHANNEL_ID = 1539415065873350686
         self.WARNING_THRESHOLD = 3
         
+        # NSFW linkek
         self.NSFW_PATTERNS = [
             r'(pornhub|onlyfans|xvideos|xbunker|xnxx)\.com',
             r'(nsfw|adult|18\+|xxx|sexy)',
             r'(spam|phishing|scam|fake)',
         ]
         
+        # Csúnya szavak (magyar + angol)
+        self.BAD_WORDS_PATTERNS = [
+            r'kurva(?!san)',  # "kurva" de nem "kurvasan"
+            r'baszd meg',
+            r'aszód meg',
+            r'tokaszod',
+            r'kurva anyád',
+            r'kurva apád',
+            r'baszd meg',
+            r'hülye',
+            r'idiot',
+            r'stupid',
+            r'dumbass',
+            r'motherfucker',
+            r'sonofabitch',
+            r'shit',
+            r'bitch',
+            r'asshole',
+            r'pénisze',
+            r'puncija',
+            r'gödörbe',
+            r'kussolj',
+            r'csukd be a',
+            r'szarozás',
+            r'buta',
+            r'barom',
+            r'azembertolvaj',
+            r'paraszt',
+            r'ribanc',
+            r'prostit',
+            r'csitri',
+            r'pofátlan',
+            r'köcsög',
+            r'bazmeg',
+            r'buzi',
+        ]
+        
+        # Egyéb rossz magatartás
         self.BAD_BEHAVIOR_PATTERNS = [
             r'(hate|bully|threat|harass)',
             r'(caps lock|SHOUTING)',
@@ -49,19 +89,29 @@ class Kamila(commands.Bot):
     async def check_rule_violations(self, message):
         violations = []
         
+        # NSFW linkek
         for pattern in self.NSFW_PATTERNS:
             if re.search(pattern, message.content, re.IGNORECASE):
                 violations.append("NSFW_CONTENT")
                 break
         
-        for pattern in self.BAD_BEHAVIOR_PATTERNS:
+        # Csúnya szavak
+        for pattern in self.BAD_WORDS_PATTERNS:
             if re.search(pattern, message.content, re.IGNORECASE):
-                violations.append("BAD_LANGUAGE")
+                violations.append("BAD_LANGUAGE_HU")
                 break
         
+        # Egyéb rossz viselkedés
+        for pattern in self.BAD_BEHAVIOR_PATTERNS:
+            if re.search(pattern, message.content, re.IGNORECASE):
+                violations.append("BAD_LANGUAGE_EN")
+                break
+        
+        # Spam
         if len(message.content) > 500 or message.content.count('http') > 3:
             violations.append("SPAM")
         
+        # CAPS LOCK
         if message.content.isupper() and len(message.content) > 50:
             violations.append("CAPS_LOCK")
         
@@ -75,13 +125,14 @@ class Kamila(commands.Bot):
         
         self.user_warnings[user_id] += 1
         
+        # VÉLEMÉNY: Ha "BAD_LANGUAGE" vagy "BAD_LANGUAGE_HU", akkor rögtön figyelmeztetés helyett közvetlenül tiltás?
         if self.user_warnings[user_id] == 1:
             await message.delete()
             await message.channel.send(
-                f"**⚠️ {message.author.name}, this violates NEVER SMP RULES!**",
+                f"**⚠️ {message.author.name}, ez sértő nyelvhasználat!**",
                 delete_after=10
             )
-            await self.log_to_admin(f"❌ **Warning issued to {message.author.name}** - First violation: {', '.join(violations)}")
+            await self.log_to_admin(f"❌ **Figyelmeztetés issued to {message.author.name}** - First violation: {', '.join(violations)}")
         
         elif self.user_warnings[user_id] == self.WARNING_THRESHOLD:
             await message.channel.set_permissions(message.author, mute_for=3600)
@@ -104,7 +155,7 @@ class Kamila(commands.Bot):
                 'joined_at': member.joined_at,
                 'nicknames': 1 if member.nick else 0,
                 'roles': len(member.roles),
-                'is_verified': 'N/A'  # ✅ Törölve/member.verified helyett
+                'is_verified': 'N/A'
             }
             
             flags = []
@@ -169,4 +220,8 @@ class Kamila(commands.Bot):
 
 if __name__ == "__main__":
     bot = Kamila()
-    bot.run('MTUzOTQxMjk4NTk2NDEzODY1Ng.GmXwQu.JBPLixCeONSh6l7mDyoOtr6onW-WAB3XdgD7VU')
+    token = os.getenv('MTUzOTQxMjk4NTk2NDEzODY1Ng.GYDOSZ.24ergmsc22yowQljPsZqCa9TE6fii_PZq725zA')
+    if not token:
+        print("❌ BOT_TOKEN not set in environment variables!")
+        exit(1)
+    bot.run(token)
