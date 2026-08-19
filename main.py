@@ -75,7 +75,7 @@ class Kamila(commands.Bot):
     async def setup_hook(self):
         print(f"🤖 Logged in as {self.user.name}")
     
-    @commands.Cog.listener()
+    # ✅ NINCS @commands.Cog.listener() DECORATOR!
     async def on_message(self, message):
         if message.author == self.user or (hasattr(message.author, 'bot') and message.author.bot):
             return
@@ -85,7 +85,6 @@ class Kamila(commands.Bot):
         if violation:
             await self.handle_violation(message, violation)
         
-        # ✅ HOZZÁADVA!
         await self.process_commands(message)
     
     async def check_rule_violations(self, message):
@@ -143,7 +142,6 @@ class Kamila(commands.Bot):
             await message.author.kick(reason="Multiple rule violations")
             await self.log_to_admin(f"👢 **KICKED {message.author.name}** - Added to return ban list")
     
-    @commands.Cog.listener()
     async def on_member_join(self, member):
         try:
             if str(member.id) in self.kicked_users:
