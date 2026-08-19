@@ -1,5 +1,4 @@
 import discord
-from discord import app_commands
 from discord.ext import commands
 import datetime
 import re
@@ -78,9 +77,6 @@ class Kamila(commands.Bot):
     
     async def setup_hook(self):
         print(f"🤖 Logged in as {self.user.name}")
-        # Slash commandok szinkronizálása
-        await self.tree.sync()
-        print("✅ Slash commands synced!")
     
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -207,31 +203,63 @@ class Kamila(commands.Bot):
                 await admin_channel.send(embed=embed)
         except Exception as e:
             print(f"Error logging to admin: {e}")
-
-# ============================================
-# SLASH COMMANDS (/) - BOT INSTANCE HASZNÁLATA
-# ============================================
-
-bot = None  # Globális változó a bot instance-hez
-
-@bot_tree.command(name="warnings", description="Show warnings for a user")
-@app_commands.describe(member="The user to check warnings for")
-async def warnings_cmd(interaction: discord.Interaction, member: discord.Member = None):
-    """Show warnings for a user"""
-    if member is None:
-        member = interaction.user
     
-    warn_count = interaction.client.user_warnings.get(str(member.id), 0)
-    await interaction.response.send_message(
-        f"**Warnings for {member.name}: {warn_count}/{interaction.client.WARNING_THRESHOLD}**"
-    )
-
-# ... többi slash command ...
+    @commands.command()
+    async def warnings(self, ctx, member: discord.Member = None):
+        target = member or ctx.author
+        warn_count = self.user_warnings.get(str(target.id), 0)
+        await ctx.send(f"**Warnings for {target.name}: {warn_count}/{self.WARNING_THRESHOLD}**")
+    
+    @commands.command()
+    async def clearwarnings(self, ctx, member: discord.Member):
+        if not ctx.author.guild_permissions.administrator:
+            return
+        
+        self.user_warnings[str(member.id)] = 0
+        await ctx.send(f"✅ Cleared warnings for {member.name}")
+    
+    @commands.command()
+    async def statuscheck(self, ctx):
+        embed = discord.Embed(title="🤖 Bot Status", color=discord.Color.purple())
+        embed.add_field(name="Users tracked", value=len(self.user_warnings), inline=True)
+        embed.add_field(name="Kick memory", value=f"{len(self.kicked_users)}", inline=True)
+        embed.add_field(name="Pending reports", value=len(self.suspicious_users), inline=True)
+        await ctx.send(embed=embed)
+    
+    @commands.command()
+    async def kicklist(self, ctx):
+        """Megmutatja a kirúgottak listáját"""
+        if not ctx.author.guild_permissions.administrator:
+            return
+        
+        if len(self.kicked_users) == 0:
+            await ctx.send("ℹ️ No users in kick memory")
+        else:
+            await ctx.send(f"📋 **Kicked Users Memory ({len(self.kicked_users)})**:\n```\n{'\n'.join(self.kicked_users)}\n```")
+    
+    @commands.command()
+    async def unban(self, ctx, member: discord.Member):
+        """Feloldja a return ban-t! A felhasználó újra jöhet."""
+        if not ctx.author.guild_permissions.administrator:
+            await ctx.send("❌ Only admins can use this command!")
+            return
+        
+        user_id = str(member.id)
+        
+        if user_id in self.kicked_users:
+            self.kicked_users.remove(user_id)
+            await ctx.send(f"✅ **Return ban lifted for {member.name}** - Can rejoin now!")
+            await self.log_to_admin(f"🔓 **UNBANNED {member.name}** - Return ban removed by {ctx.author.name}")
+        else:
+            await ctx.send(f"ℹ️ {member.name} was not in return ban list.")
+    
+    @commands.command()
+    async def removekick(self, ctx, member: discord.Member):
+        """Alias az !unban parancshoz"""
+        await self.unban(ctx, member)
 
 if __name__ == "__main__":
-    global bot
     bot = Kamila()
-    bot_tree = bot.tree  # A tree attribútum elérése
     token = os.getenv('BOT_TOKEN')
     if not token:
         print("❌ BOT_TOKEN not set!")
