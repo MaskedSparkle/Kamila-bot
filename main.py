@@ -87,6 +87,9 @@ class Kamila(commands.Bot):
         
         if violation:
             await self.handle_violation(message, violation)
+        
+        # ✅ EZ A SOR HIÁNYZIK! HOZZÁDVA!
+        await self.process_commands(message)
     
     async def check_rule_violations(self, message):
         violations = []
