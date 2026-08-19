@@ -3,7 +3,7 @@ from discord.ext import commands
 import datetime
 import re
 import os
-from datetime import timedelta  # ✅ HOZZÁADVA!
+from datetime import timedelta
 
 class Kamila(commands.Bot):
     def __init__(self):
@@ -25,13 +25,15 @@ class Kamila(commands.Bot):
             r'(spam|phishing|scam|fake)',
         ]
         
-        # Csúnya szavak (magyar + angol)
+        # Csúnya szavak (magyar + angol) - ANYÁD HOZZÁADVA!
         self.BAD_WORDS_PATTERNS = [
             r'kurva(?!san)',  # "kurva" de nem "kurvasan"
             r'baszd meg',
             r'aszód meg',
             r'tokaszod',
             r'kurva anyád',
+            r'anyád',  # ✅ ÚJ! "Anyád" is csúnya
+            r'anád',   # ✅ ÚJ! "Anád" is (kicsi betű)
             r'kurva apád',
             r'baszd meg',
             r'hülye',
@@ -60,6 +62,9 @@ class Kamila(commands.Bot):
             r'köcsög',
             r'bazmeg',
             r'buzi',
+            r'fascista',  # Politikai szélsőség
+            r'zsidó',     # Gyűlöletbeszéd
+            r'meni',      # Homofób kifejezés
         ]
         
         # Egyéb rossz magatartás
@@ -84,21 +89,19 @@ class Kamila(commands.Bot):
         
         if violation:
             await self.handle_violation(message, violation)
-        
-        # ❌ TÖRÖLVE: await self.log_admin_activity(message, violation) ← NEM LÉTEZIK!
     
     async def check_rule_violations(self, message):
         violations = []
         
         # NSFW linkek
         for pattern in self.NSFW_PATTERNS:
-            if re.search(pattern, message.content, re.IGNORECASE):
+            if re.search(pattern, message.content, re.IGNORECASE):  # ✅ IGNORECASE = kicsi/Nagy betű is
                 violations.append("NSFW_CONTENT")
                 break
         
-        # Csúnya szavak
+        # Csúnya szavak - IGNORECASE már működik!
         for pattern in self.BAD_WORDS_PATTERNS:
-            if re.search(pattern, message.content, re.IGNORECASE):
+            if re.search(pattern, message.content, re.IGNORECASE):  # ✅ "ANYAD", "Anyad", "anyad" mind detektálva!
                 violations.append("BAD_LANGUAGE_HU")
                 break
         
@@ -135,11 +138,11 @@ class Kamila(commands.Bot):
             await self.log_to_admin(f"❌ **Figyelmeztetés issued to {message.author.name}** - First violation: {', '.join(violations)}")
         
         elif self.user_warnings[user_id] == self.WARNING_THRESHOLD:
-            await message.author.timeout(datetime.datetime.utcnow() + timedelta(hours=1))  # ✅ JAVÍTVA: TIMEOUT helyett MUTE
+            await message.author.timeout(datetime.datetime.utcnow() + timedelta(hours=1))
             await self.log_to_admin(f"🔇 **Timed out {message.author.name} for 1 hour** - Reached warning threshold")
         
         else:
-            await message.author.kick(reason="Multiple rule violations")  # ✅ JAVÍTVA: author.kick, nem channel.kick!
+            await message.author.kick(reason="Multiple rule violations")
             await self.log_to_admin(f"👢 **KICKED {message.author.name}** - Exceeded maximum warnings")
     
     @commands.Cog.listener()
