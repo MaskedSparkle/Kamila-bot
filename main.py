@@ -66,8 +66,6 @@ class Kamila(commands.Bot):
         
         self.BAD_BEHAVIOR_PATTERNS = [
             r'(hate|bully|threat|harass)',
-            r'(caps lock|SHOUTING)',
-            r'(advertising|advert|promo|server)',
         ]
         
         self.user_warnings = {}
@@ -86,7 +84,12 @@ class Kamila(commands.Bot):
         print(f"🤖 Bejelentkezve mint: {self.user.name} (ID: {self.user.id})")
     
     async def on_message(self, message):
+        # Ha a bot írt, vagy üzenetet küldött, lépjen ki
         if message.author == self.user or (hasattr(message.author, 'bot') and message.author.bot):
+            return
+            
+        # A tulajt és az adminokat békén hagyja Kamila!
+        if message.guild and (message.author == message.guild.owner or message.author.guild_permissions.administrator):
             return
         
         violation = await self.check_rule_violations(message)
@@ -158,17 +161,6 @@ class Kamila(commands.Bot):
             
             account_age = datetime.datetime.now(datetime.timezone.utc) - member.created_at
             
-            report = {
-                'user': member.name,
-                'discriminator': member.discriminator,
-                'user_id': member.id,
-                'account_age_days': account_age.days,
-                'joined_at': member.joined_at,
-                'nicknames': 1 if member.nick else 0,
-                'roles': len(member.roles),
-                'is_verified': 'N/A'
-            }
-            
             flags = []
             if account_age.days < 7:
                 flags.append("NEW_ACCOUNT")
@@ -184,8 +176,8 @@ class Kamila(commands.Bot):
             )
             
             embed.add_field(name="Username", value=member.name, inline=True)
-            embed.add_field(name="Account Age", value=f"{report['account_age_days']} days", inline=True)
-            embed.add_field(name="Roles", value=f"{report['roles']}", inline=True)
+            embed.add_field(name="Account Age", value=f"{account_age.days} days", inline=True)
+            embed.add_field(name="Roles", value=f"{len(member.roles)}", inline=True)
             
             if flags:
                 embed.add_field(name="Suspicious Flags", value=', '.join(flags), inline=False)
@@ -200,7 +192,6 @@ class Kamila(commands.Bot):
     async def log_to_admin(self, message=None, embed=None):
         try:
             admin_channel = self.get_channel(self.ADMIN_CHANNEL_ID)
-            
             if message:
                 await admin_channel.send(message)
             elif embed:
@@ -249,7 +240,6 @@ class Kamila(commands.Bot):
             return
         
         user_id = str(member.id)
-        
         if user_id in self.kicked_users:
             self.kicked_users.remove(user_id)
             await interaction.response.send_message(f"✅ **Return ban lifted for {member.name}** - Can rejoin now!")
@@ -264,7 +254,6 @@ class Kamila(commands.Bot):
             return
         
         user_id = str(member.id)
-        
         if user_id in self.kicked_users:
             self.kicked_users.remove(user_id)
             await interaction.response.send_message(f"✅ **Return ban lifted for {member.name}** - Can rejoin now!")
@@ -274,6 +263,5 @@ class Kamila(commands.Bot):
 
 if __name__ == "__main__":
     bot = Kamila()
-    # Ide tedd be a saját tokenedet (vagy használj környezeti változót)
     token = "MTUzOTQxMjk4NTk2NDEzODY1Ng.GWU26I.GWwnfTcvD1skLsJOn-_5Wkx2SFK7BAw3JFyiuA" 
     bot.run(token)
