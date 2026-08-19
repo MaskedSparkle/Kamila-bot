@@ -220,4 +220,8 @@ class Kamila(commands.Bot):
 
 if __name__ == "__main__":
     bot = Kamila()
-    token = os.getenv('MTUzOTQxMjk4NTk2NDEzODY1Ng.G3Vqkq.xFqtyTAqar3pPmdOoUGNOu46yEamoLcAF3fUcU')
+    token = os.getenv('MTUzOTQxMjk4NTk2NDEzODY1Ng.GpEzNx.mXJQsLfmv0jvtet1QuWIK8Ayd-msqQuE8418zo')
+    if not token:
+        print("❌ BOT_TOKEN not set!")
+        exit(1)
+    bot.run(token)
