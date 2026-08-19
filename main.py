@@ -73,11 +73,14 @@ class Kamila(commands.Bot):
         self.user_warnings = {}
         self.suspicious_users = []
     
-    async def setup_hook(self):
-        GUILD_ID = discord.Object(id=1539413724828541089)
-        self.tree.copy_global_to(guild=GUILD_ID)
-        await self.tree.sync(guild=GUILD_ID)
-        print(f"🤖 Logged in as {self.user.name} and synced guild commands!")
+    async def on_ready(self):
+        print(f"🤖 Bejelentkezve mint: {self.user.name} (ID: {self.user.id})")
+        try:
+            # Globális szinkronizálás - ez biztosan megjeleníti mindenhol a parancsokat egy kis idő után
+            synced = await self.tree.sync()
+            print(f"✅ Sikeresen szinkronizálva {len(synced)} perjel parancs!")
+        except Exception as e:
+            print(f"❌ Hiba a parancsok szinkronizálásakor: {e}")
     
     async def on_message(self, message):
         if message.author == self.user or (hasattr(message.author, 'bot') and message.author.bot):
