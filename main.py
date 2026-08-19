@@ -169,4 +169,4 @@ class Kamila(commands.Bot):
 
 if __name__ == "__main__":
     bot = Kamila()
-    bot.run('MTUzOTQxMjk4NTk2NDEzODY1Ng.GZ3CNn.wANXgWjzqvOtKAbaENwZpUWBmHjbZROxPNCPwQ')
+    bot.run('MTUzOTQxMjk4NTk2NDEzODY1Ng.GmXwQu.JBPLixCeONSh6l7mDyoOtr6onW-WAB3XdgD7VU')
