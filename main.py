@@ -18,6 +18,9 @@ class Kamila(commands.Bot):
         self.ADMIN_CHANNEL_ID = 1539415065873350686
         self.WARNING_THRESHOLD = 3
         
+        # ✅ HOZZÁADVA: Kicked users tracking (memória)
+        self.kicked_users = set()  # ID-k tárolása
+        
         # NSFW linkek
         self.NSFW_PATTERNS = [
             r'(pornhub|onlyfans|xvideos|xbunker|xnxx)\.com',
@@ -25,17 +28,16 @@ class Kamila(commands.Bot):
             r'(spam|phishing|scam|fake)',
         ]
         
-        # Csúnya szavak (magyar + angol) - ANYÁD HOZZÁADVA!
+        # Csúnya szavak
         self.BAD_WORDS_PATTERNS = [
-            r'kurva(?!san)',  # "kurva" de nem "kurvasan"
+            r'kurva(?!san)',
             r'baszd meg',
             r'aszód meg',
             r'tokaszod',
             r'kurva anyád',
-            r'anyád',  # ✅ ÚJ! "Anyád" is csúnya
-            r'anád',   # ✅ ÚJ! "Anád" is (kicsi betű)
+            r'anyád',
+            r'anád',
             r'kurva apád',
-            r'baszd meg',
             r'hülye',
             r'idiot',
             r'stupid',
@@ -62,12 +64,8 @@ class Kamila(commands.Bot):
             r'köcsög',
             r'bazmeg',
             r'buzi',
-            r'fascista',  # Politikai szélsőség
-            r'zsidó',     # Gyűlöletbeszéd
-            r'meni',      # Homofób kifejezés
         ]
         
-        # Egyéb rossz magatartás
         self.BAD_BEHAVIOR_PATTERNS = [
             r'(hate|bully|threat|harass)',
             r'(caps lock|SHOUTING)',
@@ -93,29 +91,24 @@ class Kamila(commands.Bot):
     async def check_rule_violations(self, message):
         violations = []
         
-        # NSFW linkek
         for pattern in self.NSFW_PATTERNS:
-            if re.search(pattern, message.content, re.IGNORECASE):  # ✅ IGNORECASE = kicsi/Nagy betű is
+            if re.search(pattern, message.content, re.IGNORECASE):
                 violations.append("NSFW_CONTENT")
                 break
         
-        # Csúnya szavak - IGNORECASE már működik!
         for pattern in self.BAD_WORDS_PATTERNS:
-            if re.search(pattern, message.content, re.IGNORECASE):  # ✅ "ANYAD", "Anyad", "anyad" mind detektálva!
+            if re.search(pattern, message.content, re.IGNORECASE):
                 violations.append("BAD_LANGUAGE_HU")
                 break
         
-        # Egyéb rossz viselkedés
         for pattern in self.BAD_BEHAVIOR_PATTERNS:
             if re.search(pattern, message.content, re.IGNORECASE):
                 violations.append("BAD_LANGUAGE_EN")
                 break
         
-        # Spam
         if len(message.content) > 500 or message.content.count('http') > 3:
             violations.append("SPAM")
         
-        # CAPS LOCK
         if message.content.isupper() and len(message.content) > 50:
             violations.append("CAPS_LOCK")
         
@@ -138,16 +131,29 @@ class Kamila(commands.Bot):
             await self.log_to_admin(f"❌ **Figyelmeztetés issued to {message.author.name}** - First violation: {', '.join(violations)}")
         
         elif self.user_warnings[user_id] == self.WARNING_THRESHOLD:
-            await message.author.timeout(datetime.datetime.utcnow() + timedelta(hours=1))
-            await self.log_to_admin(f"🔇 **Timed out {message.author.name} for 1 hour** - Reached warning threshold")
+            # ✅ Return ban system! Ha már kirúgták, most BAN lesz!
+            if user_id in self.kicked_users:
+                await message.author.ban(reason="Return ban - Previously kicked")
+                await self.log_to_admin(f"🚫 **RETURN BANNED {message.author.name}** - Previously kicked!")
+            else:
+                await message.author.timeout(datetime.datetime.utcnow() + timedelta(hours=1))
+                await self.log_to_admin(f"🔇 **Timed out {message.author.name} for 1 hour** - Reached warning threshold")
         
         else:
+            # ✅ MEMORIZE - Kirúgás előtt!
+            self.kicked_users.add(user_id)
             await message.author.kick(reason="Multiple rule violations")
-            await self.log_to_admin(f"👢 **KICKED {message.author.name}** - Exceeded maximum warnings")
+            await self.log_to_admin(f"👢 **KICKED {message.author.name}** - Added to return ban list")
     
     @commands.Cog.listener()
     async def on_member_join(self, member):
         try:
+            # ✅ RETURN BAN CHECK! Ha visszajön a kirúgott!
+            if str(member.id) in self.kicked_users:
+                await member.ban(reason="Return ban - Previously kicked and returned!")
+                await self.log_to_admin(f"🚫 **AUTO BANNED returning user {member.name}** - Was previously kicked!")
+                return  # Ne folytasd, már bannolva!
+            
             account_age = datetime.datetime.now(datetime.timezone.utc) - member.created_at
             
             report = {
@@ -218,8 +224,20 @@ class Kamila(commands.Bot):
     async def statuscheck(self, ctx):
         embed = discord.Embed(title="🤖 Bot Status", color=discord.Color.purple())
         embed.add_field(name="Users tracked", value=len(self.user_warnings), inline=True)
+        embed.add_field(name="Kick memory", value=f"{len(self.kicked_users)}", inline=True)
         embed.add_field(name="Pending reports", value=len(self.suspicious_users), inline=True)
         await ctx.send(embed=embed)
+    
+    @commands.command()
+    async def kicklist(self, ctx):
+        """Megmutatja a kirúgottak listáját"""
+        if not ctx.author.guild_permissions.administrator:
+            return
+        
+        if len(self.kicked_users) == 0:
+            await ctx.send("ℹ️ No users in kick memory")
+        else:
+            await ctx.send(f"📋 **Kicked Users Memory ({len(self.kicked_users)})**:\n```\n{'\n'.join(self.kicked_users)}\n```")
 
 if __name__ == "__main__":
     bot = Kamila()
