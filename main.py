@@ -76,9 +76,10 @@ class Kamila(commands.Bot):
     async def on_ready(self):
         print(f"🤖 Bejelentkezve mint: {self.user.name} (ID: {self.user.id})")
         try:
-            # Globális szinkronizálás - ez biztosan megjeleníti mindenhol a parancsokat egy kis idő után
-            synced = await self.tree.sync()
-            print(f"✅ Sikeresen szinkronizálva {len(synced)} perjel parancs!")
+            GUILD_ID = discord.Object(id=1539413724828541089)
+            self.tree.copy_global_to(guild=GUILD_ID)
+            synced = await self.tree.sync(guild=GUILD_ID)
+            print(f"✅ Sikeresen szinkronizálva {len(synced)} perjel parancs erre a szerverre!")
         except Exception as e:
             print(f"❌ Hiba a parancsok szinkronizálásakor: {e}")
     
