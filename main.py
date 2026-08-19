@@ -3,6 +3,7 @@ from discord.ext import commands
 import datetime
 import re
 import os
+from datetime import timedelta  # ✅ HOZZÁADVA!
 
 class Kamila(commands.Bot):
     def __init__(self):
@@ -84,7 +85,7 @@ class Kamila(commands.Bot):
         if violation:
             await self.handle_violation(message, violation)
         
-        await self.log_admin_activity(message, violation)
+        # ❌ TÖRÖLVE: await self.log_admin_activity(message, violation) ← NEM LÉTEZIK!
     
     async def check_rule_violations(self, message):
         violations = []
@@ -125,7 +126,6 @@ class Kamila(commands.Bot):
         
         self.user_warnings[user_id] += 1
         
-        # VÉLEMÉNY: Ha "BAD_LANGUAGE" vagy "BAD_LANGUAGE_HU", akkor rögtön figyelmeztetés helyett közvetlenül tiltás?
         if self.user_warnings[user_id] == 1:
             await message.delete()
             await message.channel.send(
@@ -135,11 +135,11 @@ class Kamila(commands.Bot):
             await self.log_to_admin(f"❌ **Figyelmeztetés issued to {message.author.name}** - First violation: {', '.join(violations)}")
         
         elif self.user_warnings[user_id] == self.WARNING_THRESHOLD:
-            await message.channel.set_permissions(message.author, mute_for=3600)
-            await self.log_to_admin(f"🔇 **Muted {message.author.name} for 1 hour** - Reached warning threshold")
+            await message.author.timeout(datetime.datetime.utcnow() + timedelta(hours=1))  # ✅ JAVÍTVA: TIMEOUT helyett MUTE
+            await self.log_to_admin(f"🔇 **Timed out {message.author.name} for 1 hour** - Reached warning threshold")
         
         else:
-            await message.channel.kick(reason="Multiple rule violations")
+            await message.author.kick(reason="Multiple rule violations")  # ✅ JAVÍTVA: author.kick, nem channel.kick!
             await self.log_to_admin(f"👢 **KICKED {message.author.name}** - Exceeded maximum warnings")
     
     @commands.Cog.listener()
