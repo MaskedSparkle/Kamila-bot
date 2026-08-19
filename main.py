@@ -18,17 +18,17 @@ class Kamila(commands.Bot):
         self.ADMIN_CHANNEL_ID = 1539415065873350686
         self.WARNING_THRESHOLD = 3
         
-        
+
         self.kicked_users = set()
         
-        
+
         self.NSFW_PATTERNS = [
             r'(pornhub|onlyfans|xvideos|xbunker|xnxx)\.com',
             r'(nsfw|adult|18\+|xxx|sexy)',
             r'(spam|phishing|scam|fake)',
         ]
         
-        
+
         self.BAD_WORDS_PATTERNS = [
             r'kurva(?!san)',
             r'baszd meg',
@@ -214,7 +214,8 @@ class Kamila(commands.Bot):
             member = interaction.user
         
         warn_count = interaction.client.user_warnings.get(str(member.id), 0)
-        await interaction.response.send_message(f"**Warnings for {member.name}: {warn_count}/{interaction.client.WARNING_THRESHOLD**")
+
+        await interaction.response.send_message(f"**Warnings for {member.name}: {warn_count}/{interaction.client.WARNING_THRESHOLD}**")
     
     @commands.tree.command(name="clearwarnings", description="Clear warnings for a user (Admin only)")
     async def clearwarnings_cmd(interaction: discord.Interaction, member: discord.Member):
