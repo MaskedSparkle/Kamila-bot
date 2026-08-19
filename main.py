@@ -76,6 +76,9 @@ class Kamila(commands.Bot):
         print(f"🤖 Logged in as {self.user.name}")
     
     async def on_message(self, message):
+        # Először futtatjuk a parancsokat, hogy a !kicklist és társai működjenek
+        await self.process_commands(message)
+        
         if message.author == self.user or (hasattr(message.author, 'bot') and message.author.bot):
             return
         
@@ -83,8 +86,6 @@ class Kamila(commands.Bot):
         
         if violation:
             await self.handle_violation(message, violation)
-        
-        await self.process_commands(message)
     
     async def check_rule_violations(self, message):
         violations = []
