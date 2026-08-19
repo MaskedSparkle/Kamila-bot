@@ -13,22 +13,22 @@ class Kamila(commands.Bot):
         intents.messages = True
         intents.guilds = True
         
-        super().__init__(command_prefix='!', intents=intents)  # Prefix még kell más dolgoknak
+        super().__init__(command_prefix='!', intents=intents)
         
         self.ADMIN_CHANNEL_ID = 1539415065873350686
         self.WARNING_THRESHOLD = 3
         
-        # Kirúgottak tracking (memória)
+        
         self.kicked_users = set()
         
-        # NSFW linkek
+        
         self.NSFW_PATTERNS = [
             r'(pornhub|onlyfans|xvideos|xbunker|xnxx)\.com',
             r'(nsfw|adult|18\+|xxx|sexy)',
             r'(spam|phishing|scam|fake)',
         ]
         
-        # Csúnya szavak
+        
         self.BAD_WORDS_PATTERNS = [
             r'kurva(?!san)',
             r'baszd meg',
@@ -77,7 +77,7 @@ class Kamila(commands.Bot):
     
     async def setup_hook(self):
         print(f"🤖 Logged in as {self.user.name}")
-        # Slash commandok szinkronizálása
+
         await self.tree.sync()
         print("✅ Slash commands synced!")
     
@@ -149,7 +149,7 @@ class Kamila(commands.Bot):
     @commands.Cog.listener()
     async def on_member_join(self, member):
         try:
-            # ✅ RETURN BAN CHECK!
+
             if str(member.id) in self.kicked_users:
                 await member.ban(reason="Return ban - Previously kicked and returned!")
                 await self.log_to_admin(f"🚫 **AUTO BANNED returning user {member.name}** - Was previously kicked!")
@@ -207,7 +207,7 @@ class Kamila(commands.Bot):
         except Exception as e:
             print(f"Error logging to admin: {e}")
     
-    # ✅ SLASH COMMANDS (/)
+
     @commands.tree.command(name="warnings", description="Show warnings for a user")
     async def warnings_cmd(interaction: discord.Interaction, member: discord.Member = None):
         if member is None:
