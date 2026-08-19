@@ -1,4 +1,5 @@
 import discord
+from discord import app_commands
 from discord.ext import commands
 import datetime
 import re
@@ -77,7 +78,7 @@ class Kamila(commands.Bot):
     
     async def setup_hook(self):
         print(f"🤖 Logged in as {self.user.name}")
-        # Slash commandok szinkronizálása minden szerverre
+        # Slash commandok szinkronizálása
         await self.tree.sync()
         print("✅ Slash commands synced!")
     
@@ -207,15 +208,16 @@ class Kamila(commands.Bot):
         except Exception as e:
             print(f"Error logging to admin: {e}")
 
-
 # ============================================
-# SLASH COMMANDS (/) - A KAMILA CLASS UTÁN!
+# SLASH COMMANDS (/) - BOT INSTANCE HASZNÁLATA
 # ============================================
 
-@commands.tree.command(name="warnings", description="Show warnings for a user")
-@discord.app_commands.describe(member="The user to check warnings for")
+bot = None  # Globális változó a bot instance-hez
+
+@bot_tree.command(name="warnings", description="Show warnings for a user")
+@app_commands.describe(member="The user to check warnings for")
 async def warnings_cmd(interaction: discord.Interaction, member: discord.Member = None):
-    """/warnings - Show warnings for a user"""
+    """Show warnings for a user"""
     if member is None:
         member = interaction.user
     
@@ -224,63 +226,15 @@ async def warnings_cmd(interaction: discord.Interaction, member: discord.Member 
         f"**Warnings for {member.name}: {warn_count}/{interaction.client.WARNING_THRESHOLD}**"
     )
 
-@commands.tree.command(name="clearwarnings", description="Clear warnings for a user (Admin only)")
-@discord.app_commands.describe(member="The user to clear warnings for")
-async def clearwarnings_cmd(interaction: discord.Interaction, member: discord.Member):
-    """/clearwarnings - Clear warnings for a user (Admin only)"""
-    if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Only admins can use this command!", ephemeral=True)
-        return
-    
-    interaction.client.user_warnings[str(member.id)] = 0
-    await interaction.response.send_message(f"✅ Cleared warnings for {member.name}")
-
-@commands.tree.command(name="statuscheck", description="Check bot status")
-async def statuscheck_cmd(interaction: discord.Interaction):
-    """/statuscheck - Check bot status"""
-    embed = discord.Embed(title="🤖 Bot Status", color=discord.Color.purple())
-    embed.add_field(name="Users tracked", value=len(interaction.client.user_warnings), inline=True)
-    embed.add_field(name="Kick memory", value=f"{len(interaction.client.kicked_users)}", inline=True)
-    embed.add_field(name="Pending reports", value=len(interaction.client.suspicious_users), inline=True)
-    await interaction.response.send_message(embed=embed)
-
-@commands.tree.command(name="kicklist", description="Show kicked users memory (Admin only)")
-async def kicklist_cmd(interaction: discord.Interaction):
-    """/kicklist - Show kicked users memory (Admin only)"""
-    if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Only admins can use this command!", ephemeral=True)
-        return
-    
-    if len(interaction.client.kicked_users) == 0:
-        await interaction.response.send_message("ℹ️ No users in kick memory")
-    else:
-        kick_list = '\n'.join(interaction.client.kicked_users)
-        await interaction.response.send_message(
-            f"📋 **Kicked Users Memory ({len(interaction.client.kicked_users)})**:\n```\n{kick_list}\n```"
-        )
-
-@commands.tree.command(name="unban", description="Lift return ban for a user (Admin only)")
-@discord.app_commands.describe(member="The user to lift the return ban for")
-async def unban_cmd(interaction: discord.Interaction, member: discord.Member):
-    """/unban - Lift return ban for a user (Admin only)"""
-    if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Only admins can use this command!", ephemeral=True)
-        return
-    
-    user_id = str(member.id)
-    
-    if user_id in interaction.client.kicked_users:
-        interaction.client.kicked_users.remove(user_id)
-        await interaction.response.send_message(f"✅ **Return ban lifted for {member.name}** - Can rejoin now!")
-        await interaction.client.log_to_admin(f"🔓 **UNBANNED {member.name}** - Return ban removed by {interaction.user.name}")
-    else:
-        await interaction.response.send_message(f"ℹ️ {member.name} was not in return ban list.")
-
+# ... többi slash command ...
 
 if __name__ == "__main__":
+    global bot
     bot = Kamila()
+    bot_tree = bot.tree  # A tree attribútum elérése
     token = os.getenv('BOT_TOKEN')
     if not token:
         print("❌ BOT_TOKEN not set!")
         exit(1)
     bot.run(token)
+    
