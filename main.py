@@ -75,7 +75,6 @@ class Kamila(commands.Bot):
     async def setup_hook(self):
         print(f"🤖 Logged in as {self.user.name}")
     
-    # ✅ NINCS @commands.Cog.listener() DECORATOR!
     async def on_message(self, message):
         if message.author == self.user or (hasattr(message.author, 'bot') and message.author.bot):
             return
