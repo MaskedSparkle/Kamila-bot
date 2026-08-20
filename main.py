@@ -13,6 +13,7 @@ class Kamila(commands.Bot):
         intents.members = True
         intents.messages = True
         intents.guilds = True
+        intents.bans = True  # Fontos a tiltások és unbanok figyeléséhez!
         
         super().__init__(command_prefix='!', intents=intents)
         
@@ -84,11 +85,9 @@ class Kamila(commands.Bot):
         print(f"🤖 Bejelentkezve mint: {self.user.name} (ID: {self.user.id})")
     
     async def on_message(self, message):
-        # Ha a bot írt, vagy üzenetet küldött, lépjen ki
         if message.author == self.user or (hasattr(message.author, 'bot') and message.author.bot):
             return
             
-        # A tulajt és az adminokat békén hagyja Kamila!
         if message.guild and (message.author == message.guild.owner or message.author.guild_permissions.administrator):
             return
         
@@ -152,6 +151,13 @@ class Kamila(commands.Bot):
             await message.author.kick(reason="Multiple rule violations")
             await self.log_to_admin(f"👢 **KICKED {message.author.name}** - Added to return ban list")
     
+    # ÚJ: Kamila csendben figyeli, ha bárkit unbanolsz a szerveren
+    async def on_member_unban(self, guild, user):
+        user_id = str(user.id)
+        if user_id in self.kicked_users:
+            self.kicked_users.remove(user_id)
+        await self.log_to_admin(f"🔓 **Kamila észlelte:** **{user.name}** unbanolva lett, így már újra beléphet a szerverre! ✨")
+
     async def on_member_join(self, member):
         try:
             if str(member.id) in self.kicked_users:
@@ -232,34 +238,6 @@ class Kamila(commands.Bot):
             await interaction.response.send_message("ℹ️ No users in kick memory", ephemeral=True)
         else:
             await interaction.response.send_message(f"📋 **Kicked Users Memory ({len(self.kicked_users)})**:\n```\n{'\n'.join(self.kicked_users)}\n```", ephemeral=True)
-    
-    @app_commands.command(name="unban", description="Feloldja a visszatérési tiltást")
-    async def unban(self, interaction: discord.Interaction, member: discord.Member):
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ Only admins can use this command!", ephemeral=True)
-            return
-        
-        user_id = str(member.id)
-        if user_id in self.kicked_users:
-            self.kicked_users.remove(user_id)
-            await interaction.response.send_message(f"✅ **Return ban lifted for {member.name}** - Can rejoin now!")
-            await self.log_to_admin(f"🔓 **UNBANNED {member.name}** - Return ban removed by {interaction.user.name}")
-        else:
-            await interaction.response.send_message(f"ℹ️ {member.name} was not in return ban list.", ephemeral=True)
-    
-    @app_commands.command(name="removekick", description="Eltávolítja a felhasználót a kick memóriából")
-    async def removekick(self, interaction: discord.Interaction, member: discord.Member):
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ Only admins can use this command!", ephemeral=True)
-            return
-        
-        user_id = str(member.id)
-        if user_id in self.kicked_users:
-            self.kicked_users.remove(user_id)
-            await interaction.response.send_message(f"✅ **Return ban lifted for {member.name}** - Can rejoin now!")
-            await self.log_to_admin(f"🔓 **UNBANNED {member.name}** - Return ban removed by {interaction.user.name}")
-        else:
-            await interaction.response.send_message(f"ℹ️ {member.name} was not in return ban list.", ephemeral=True)
 
 if __name__ == "__main__":
     bot = Kamila()
