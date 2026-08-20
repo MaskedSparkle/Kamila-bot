@@ -18,7 +18,7 @@ class Kamila(commands.Bot):
         super().__init__(command_prefix='!', intents=intents)
         
         self.ADMIN_CHANNEL_ID = 1497294782786048020
-        self.WARNING_THRESHOLD = 3
+        self.WARNING_THRESHOLD = 2  # 2 csúnya beszéd után repül!
         
         self.kicked_users = set()
         
@@ -130,28 +130,26 @@ class Kamila(commands.Bot):
         
         self.user_warnings[user_id] += 1
         
+        # 1. Figyelmeztetés: törli az üzenetet és kiírja a figyelmeztetést
         if self.user_warnings[user_id] == 1:
             await message.delete()
             await message.channel.send(
-                f"**⚠️ {message.author.name}, ez sértő nyelvhasználat!**",
+                f"**⚠️ {message.author.name}, ha még egyszer csunyát írsz, akkor repülsz innen a szerverről!**",
                 delete_after=10
             )
-            await self.log_to_admin(f"❌ **Figyelmeztetés issued to {message.author.name}** - First violation: {', '.join(violations)}")
+            await self.log_to_admin(f"❌ **Figyelmeztetés küldve {message.author.name}-nek** - Első szabálysértés: {', '.join(violations)}")
         
-        elif self.user_warnings[user_id] == self.WARNING_THRESHOLD:
-            if user_id in self.kicked_users:
-                await message.author.ban(reason="Return ban - Previously kicked!")
-                await self.log_to_admin(f"🚫 **RETURN BANNED {message.author.name}** - Previously kicked!")
-            else:
-                await message.author.timeout(datetime.datetime.utcnow() + timedelta(hours=1))
-                await self.log_to_admin(f"🔇 **Timed out {message.author.name} for 1 hour** - Reached warning threshold")
-        
+        # 2. (vagy több) alkalom: repül a szerverről!
         else:
             self.kicked_users.add(user_id)
-            await message.author.kick(reason="Multiple rule violations")
-            await self.log_to_admin(f"👢 **KICKED {message.author.name}** - Added to return ban list")
+            await message.delete()
+            try:
+                await message.author.kick(reason="Többszöri csúnya beszéd / szabálysértés")
+            except Exception:
+                pass
+            await self.log_to_admin(f"👢 **KICKED {message.author.name}** - Második alkalom után kirúgva és hozzáadva a tiltólistához!")
     
-    # ÚJ: Kamila csendben figyeli, ha bárkit unbanolsz a szerveren
+    # Kamila csendben figyeli, ha bárkit unbanolsz a szerveren
     async def on_member_unban(self, guild, user):
         user_id = str(user.id)
         if user_id in self.kicked_users:
