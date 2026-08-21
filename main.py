@@ -261,5 +261,5 @@ class Kamila(commands.Bot):
 
 if __name__ == "__main__":
     bot = Kamila()
-    token = "MTUzOTQxMjk4NTk2NDEzODY1Ng.GWU26I.GWwnfTcvD1skLsJOn-_5Wkx2SFK7BAw3JFyiuA"  
+    token = os.getenv("DISCORD_TOKEN")  # A Railway környezeti változójából olvassa be
     bot.run(token)
