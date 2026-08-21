@@ -6,6 +6,27 @@ import re
 import os
 from datetime import timedelta
 
+# Segédfüggvény az évek, hónapok és napok kiszámításához
+def get_account_age_string(created_at):
+    now = datetime.datetime.now(datetime.timezone.utc)
+    delta = now - created_at
+    days = delta.days
+    
+    years = days // 365
+    remaining_days = days % 365
+    months = remaining_days // 30
+    final_days = remaining_days % 30
+    
+    parts = []
+    if years > 0:
+        parts.append(f"{years} év")
+    if months > 0:
+        parts.append(f"{months} hónap")
+    if final_days > 0 or not parts:
+        parts.append(f"{final_days} nap")
+        
+    return f"{', '.join(parts)} ({days} nap)"
+
 class Kamila(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
@@ -163,10 +184,11 @@ class Kamila(commands.Bot):
                 await self.log_to_admin(f"🚫 **AUTO BANNED returning user {member.name}** - Was previously kicked!")
                 return
             
-            account_age = datetime.datetime.now(datetime.timezone.utc) - member.created_at
+            account_age_str = get_account_age_string(member.created_at)
+            account_age_days = (datetime.datetime.now(datetime.timezone.utc) - member.created_at).days
             
             flags = []
-            if account_age.days < 7:
+            if account_age_days < 7:
                 flags.append("NEW_ACCOUNT")
             if member.nick:
                 flags.append("HAS_NICK")
@@ -180,7 +202,7 @@ class Kamila(commands.Bot):
             )
             
             embed.add_field(name="Username", value=member.name, inline=True)
-            embed.add_field(name="Account Age", value=f"{account_age.days} days", inline=True)
+            embed.add_field(name="Account Age", value=account_age_str, inline=True)
             embed.add_field(name="Roles", value=f"{len(member.roles)}", inline=True)
             
             if flags:
@@ -239,5 +261,5 @@ class Kamila(commands.Bot):
 
 if __name__ == "__main__":
     bot = Kamila()
-    token = "MTUzOTQxMjk4NTk2NDEzODY1Ng.GWU26I.GWwnfTcvD1skLsJOn-_5Wkx2SFK7BAw3JFyiuA" 
+    token = "MTUzOTQxMjk4NTk2NDEzODY1Ng.GWU26I.GWwnfTcvD1skLsJOn-_5Wkx2SFK7BAw3JFyiuA"  
     bot.run(token)
