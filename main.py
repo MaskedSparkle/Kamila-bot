@@ -151,7 +151,6 @@ class Kamila(commands.Bot):
         
         self.user_warnings[user_id] += 1
         
-        # 1. Figyelmeztetés: törli az üzenetet és kiírja a figyelmeztetést
         if self.user_warnings[user_id] == 1:
             await message.delete()
             await message.channel.send(
@@ -159,8 +158,6 @@ class Kamila(commands.Bot):
                 delete_after=10
             )
             await self.log_to_admin(f"❌ **Figyelmeztetés küldve {message.author.name}-nek** - Első szabálysértés: {', '.join(violations)}")
-        
-        # 2. (vagy több) alkalom: repül a szerverről!
         else:
             self.kicked_users.add(user_id)
             await message.delete()
@@ -170,7 +167,6 @@ class Kamila(commands.Bot):
                 pass
             await self.log_to_admin(f"👢 **KICKED {message.author.name}** - Második alkalom után kirúgva és hozzáadva a tiltólistához!")
     
-    # Kamila csendben figyeli, ha bárkit unbanolsz a szerveren
     async def on_member_unban(self, guild, user):
         user_id = str(user.id)
         if user_id in self.kicked_users:
@@ -187,28 +183,55 @@ class Kamila(commands.Bot):
             account_age_str = get_account_age_string(member.created_at)
             account_age_days = (datetime.datetime.now(datetime.timezone.utc) - member.created_at).days
             
+            # --- RÉSZLETES BIZTONSÁGI ÉS GYANÚELEMZÉS ---
             flags = []
-            if account_age_days < 7:
-                flags.append("NEW_ACCOUNT")
-            if member.nick:
-                flags.append("HAS_NICK")
-            if len(member.roles) == 1:
-                flags.append("NO_ROLES")
             
+            # 1. Fiók kora (7 napnál fiatalabb)
+            if account_age_days < 7:
+                flags.append("🔴 ÚJ FIÓK (< 7 nap)")
+                
+            # 2. Van-e egyedi beceneve a szerveren
+            if member.nick:
+                flags.append("ℹ️ Egyedi becenév")
+                
+            # 3. Van-e rangja (ha csak @everyone van rajta, azaz 1 darab role van)
+            has_roles = len(member.roles) > 1
+            if not has_roles:
+                flags.append("⚠️ Nincsenek rangok")
+                
+            # 4. Van-e egyedi profilképe (ha nincs, az alapértelmezett discord avatar)
+            if not member.avatar:
+                flags.append("⚠️ Alapértelmezett profilkép (Nincs avatar)")
+                
+            # 5. Bot ellenőrzés
+            if member.bot:
+                flags.append("🤖 Ez egy BOT fiók")
+
+            # Összesített gyanú-értékelés
+            is_suspicious = len(flags) >= 2 or account_age_days < 2 or not member.avatar
+            
+            if is_suspicious:
+                self.suspicious_users.append(member.id)
+                status_text = "🚨 **GYANÚS / POTENCIÁLISAN FELTÖRT VAGY KÁROS FIÓK!**"
+            else:
+                status_text = "✅ **Megbízhatónak tűnő fiók**"
+
             embed = discord.Embed(
-                title="🚨 NEW MEMBER ALERT",
-                color=discord.Color.yellow() if flags else discord.Color.green(),
+                title="🚨 NEW MEMBER SECURITY SCAN",
+                color=discord.Color.red() if is_suspicious else discord.Color.green(),
                 timestamp=datetime.datetime.utcnow()
             )
             
-            embed.add_field(name="Username", value=member.name, inline=True)
-            embed.add_field(name="Account Age", value=account_age_str, inline=True)
-            embed.add_field(name="Roles", value=f"{len(member.roles)}", inline=True)
+            embed.add_field(name="Felhasználó", value=member.mention, inline=True)
+            embed.add_field(name="Fiók Kora", value=account_age_str, inline=True)
+            embed.add_field(name="Státusz Értékelés", value=status_text, inline=False)
+            embed.add_field(name="Rangok száma", value=f"{len(member.roles) - 1} db", inline=True)
             
             if flags:
-                embed.add_field(name="Suspicious Flags", value=', '.join(flags), inline=False)
-                if member.avatar:
-                    embed.set_thumbnail(url=member.avatar.url)
+                embed.add_field(name="Biztonsági Jelzések (Flags)", value='\n'.join(flags), inline=False)
+                
+            if member.avatar:
+                embed.set_thumbnail(url=member.avatar.url)
             
             await self.log_to_admin(embed=embed)
         
