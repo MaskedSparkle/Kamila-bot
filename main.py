@@ -6,7 +6,7 @@ import re
 import os
 from datetime import timedelta
 
-# Segédfüggvény az évek, hónapok és napok kiszámításához
+
 def get_account_age_string(created_at):
     now = datetime.datetime.now(datetime.timezone.utc)
     delta = now - created_at
@@ -34,12 +34,12 @@ class Kamila(commands.Bot):
         intents.members = True
         intents.messages = True
         intents.guilds = True
-        intents.bans = True  # Fontos a tiltások és unbanok figyeléséhez!
+        intents.bans = True 
         
         super().__init__(command_prefix='!', intents=intents)
         
         self.ADMIN_CHANNEL_ID = 1497294782786048020
-        self.WARNING_THRESHOLD = 2  # 2 csúnya beszéd után repül!
+        self.WARNING_THRESHOLD = 2 
         
         self.kicked_users = set()
         
@@ -183,27 +183,25 @@ class Kamila(commands.Bot):
             account_age_str = get_account_age_string(member.created_at)
             account_age_days = (datetime.datetime.now(datetime.timezone.utc) - member.created_at).days
             
-            # --- RÉSZLETES BIZTONSÁGI ÉS GYANÚELEMZÉS ---
+           
             flags = []
-            
-            # 1. Fiók kora (7 napnál fiatalabb)
             if account_age_days < 7:
                 flags.append("🔴 ÚJ FIÓK (< 7 nap)")
                 
-            # 2. Van-e egyedi beceneve a szerveren
+           
             if member.nick:
                 flags.append("ℹ️ Egyedi becenév")
                 
-            # 3. Van-e rangja (ha csak @everyone van rajta, azaz 1 darab role van)
+           
             has_roles = len(member.roles) > 1
             if not has_roles:
                 flags.append("⚠️ Nincsenek rangok")
                 
-            # 4. Van-e egyedi profilképe (ha nincs, az alapértelmezett discord avatar)
+            
             if not member.avatar:
                 flags.append("⚠️ Alapértelmezett profilkép (Nincs avatar)")
                 
-            # 5. Bot ellenőrzés
+            
             if member.bot:
                 flags.append("🤖 Ez egy BOT fiók")
 
