@@ -39,7 +39,7 @@ class Kamila(commands.Bot):
         super().__init__(command_prefix='!', intents=intents)
         
         self.ADMIN_CHANNEL_ID = 1497294782786048020
-        self.WARNING_THRESHOLD = 2 
+        self.WARNING_THRESHOLD = 3 
         
         self.kicked_users = set()
         
@@ -122,17 +122,17 @@ class Kamila(commands.Bot):
         
         for pattern in self.NSFW_PATTERNS:
             if re.search(pattern, message.content, re.IGNORECASE):
-                violations.append("NSFW_CONTENT")
+                violations.append("nincs NSFW")
                 break
         
         for pattern in self.BAD_WORDS_PATTERNS:
             if re.search(pattern, message.content, re.IGNORECASE):
-                violations.append("BAD_LANGUAGE_HU")
+                violations.append("nincs csunya beszéd ")
                 break
         
         for pattern in self.BAD_BEHAVIOR_PATTERNS:
             if re.search(pattern, message.content, re.IGNORECASE):
-                violations.append("BAD_LANGUAGE_EN")
+                violations.append("nincs csunya beszéd angolul is vonatkozik")
                 break
         
         if len(message.content) > 500 or message.content.count('http') > 3:
@@ -148,24 +148,28 @@ class Kamila(commands.Bot):
         
         if user_id not in self.user_warnings:
             self.user_warnings[user_id] = 0
-        
+            
         self.user_warnings[user_id] += 1
+        current_warnings = self.user_warnings[user_id]
         
-        if self.user_warnings[user_id] == 1:
+        
+        if current_warnings < 3:
             await message.delete()
             await message.channel.send(
-                f"**⚠️ {message.author.name}, ha még egyszer csunyát írsz, akkor repülsz innen a szerverről!**",
+                f"**⚠️ {message.author.name}, ez a(z) {current_warnings}. figyelmeztetésed! Ha eléred a 3-at, repülsz a szerverről!**",
                 delete_after=10
             )
-            await self.log_to_admin(f"❌ **Figyelmeztetés küldve {message.author.name}-nek** - Első szabálysértés: {', '.join(violations)}")
+            await self.log_to_admin(f"❌ **Figyelmeztetés küldve {message.author.name}-nek** ({current_warnings}/3) - Szabálysértés: {', '.join(violations)}")
+        
+        
         else:
             self.kicked_users.add(user_id)
             await message.delete()
             try:
-                await message.author.kick(reason="Többszöri csúnya beszéd / szabálysértés")
+                await message.author.kick(reason="Többszöri (3 alkalom) csúnya beszéd / NSFW / szabálysértés")
             except Exception:
                 pass
-            await self.log_to_admin(f"👢 **KICKED {message.author.name}** - Második alkalom után kirúgva és hozzáadva a tiltólistához!")
+            await self.log_to_admin(f"👢 **KICKED {message.author.name}** - Harmadik alkalom után kirúgva és hozzáadva a tiltólistához!")
     
     async def on_member_unban(self, guild, user):
         user_id = str(user.id)
@@ -197,15 +201,15 @@ class Kamila(commands.Bot):
             if not has_roles:
                 flags.append("⚠️ Nincsenek rangok")
                 
-            
+           
             if not member.avatar:
                 flags.append("⚠️ Alapértelmezett profilkép (Nincs avatar)")
                 
-            
+           
             if member.bot:
                 flags.append("🤖 Ez egy BOT fiók")
 
-            # Összesített gyanú-értékelés
+           
             is_suspicious = len(flags) >= 2 or account_age_days < 2 or not member.avatar
             
             if is_suspicious:
@@ -282,5 +286,5 @@ class Kamila(commands.Bot):
 
 if __name__ == "__main__":
     bot = Kamila()
-    token = os.getenv("DISCORD_TOKEN")  # A Railway környezeti változójából olvassa be
+    token = os.getenv("DISCORD_TOKEN")  
     bot.run(token)
