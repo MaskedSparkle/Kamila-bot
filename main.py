@@ -5,7 +5,21 @@ import datetime
 import re
 import os
 from datetime import timedelta
+from flask import Flask
+import threading
 
+# --- WEB PORT KAMILÁNAK (Render miatt) ---
+app_web = Flask(__name__)
+@app_web.route('/')
+def home():
+    return "Kamila is alive! 🛡️"
+
+def run_web():
+    port = int(os.environ.get("PORT", 10000))
+    app_web.run(host='0.0.0.0', port=port)
+
+threading.Thread(target=run_web, daemon=True).start()
+# --- VÉGE ---
 
 def get_account_age_string(created_at):
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -152,15 +166,13 @@ class Kamila(commands.Bot):
         self.user_warnings[user_id] += 1
         current_warnings = self.user_warnings[user_id]
         
-        
         if current_warnings < 3:
             await message.delete()
             await message.channel.send(
-                f"**⚠️ {message.author.name}, ez a(z) {current_warnings}. figyelmeztetésed! Ha eléred a 3-at, repülsz a szerverről!**",
+                f"**⚠ {message.author.name}, ez a(z) {current_warnings}. figyelmeztetésed! Ha eléred a 3-at, repülsz a szerverről!**",
                 delete_after=10
             )
             await self.log_to_admin(f"❌ **Figyelmeztetés küldve {message.author.name}-nek** ({current_warnings}/3) - Szabálysértés: {', '.join(violations)}")
-        
         
         else:
             self.kicked_users.add(user_id)
@@ -187,29 +199,19 @@ class Kamila(commands.Bot):
             account_age_str = get_account_age_string(member.created_at)
             account_age_days = (datetime.datetime.now(datetime.timezone.utc) - member.created_at).days
             
-           
             flags = []
             if account_age_days < 7:
                 flags.append("🔴 ÚJ FIÓK (< 7 nap)")
-                
-           
             if member.nick:
-                flags.append("ℹ️ Egyedi becenév")
-                
-           
+                flags.append("ℹ Egyedi becenév")
             has_roles = len(member.roles) > 1
             if not has_roles:
-                flags.append("⚠️ Nincsenek rangok")
-                
-           
+                flags.append("⚠ Nincsenek rangok")
             if not member.avatar:
-                flags.append("⚠️ Alapértelmezett profilkép (Nincs avatar)")
-                
-           
+                flags.append("⚠ Alapértelmezett profilkép (Nincs avatar)")
             if member.bot:
                 flags.append("🤖 Ez egy BOT fiók")
 
-           
             is_suspicious = len(flags) >= 2 or account_age_days < 2 or not member.avatar
             
             if is_suspicious:
@@ -280,7 +282,7 @@ class Kamila(commands.Bot):
             return
         
         if len(self.kicked_users) == 0:
-            await interaction.response.send_message("ℹ️ No users in kick memory", ephemeral=True)
+            await interaction.response.send_message("ℹ No users in kick memory", ephemeral=True)
         else:
             await interaction.response.send_message(f"📋 **Kicked Users Memory ({len(self.kicked_users)})**:\n```\n{'\n'.join(self.kicked_users)}\n```", ephemeral=True)
 
