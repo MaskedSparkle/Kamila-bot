@@ -8,7 +8,7 @@ import json
 from flask import Flask
 import threading
 
-# --- WEB PORT KAMILÁNAK (Render miatt) ---
+
 app_web = Flask(__name__)
 @app_web.route('/')
 def home():
@@ -19,9 +19,9 @@ def run_web():
     app_web.run(host='0.0.0.0', port=port)
 
 threading.Thread(target=run_web, daemon=True).start()
-# --- VÉGE ---
 
-# --- MENTÉS RENDER ÚJRAINDULÁS ELLEN ---
+
+
 DATA_FILE = "kamila_data.json"
 
 def load_data():
@@ -41,7 +41,7 @@ def save_data(warnings, kicked):
     except Exception as e:
         print(f"Save error: {e}")
 
-# --- ACCOUNT AGE ---
+
 def get_account_age_string(created_at):
     now = datetime.datetime.now(datetime.timezone.utc)
     delta = now - created_at
@@ -77,13 +77,13 @@ class Kamila(commands.Bot):
         self.user_warnings = warnings
         self.kicked_users = kicked
         
-        # SAFE: \b szóhatárokkal, kevesebb false positive
+       
         self.NSFW_PATTERNS = [
             r'\b(pornhub|onlyfans|xvideos|xnxx)\.com\b',
             r'https?://\S*(pornhub|onlyfans|xvideos)\S*',
         ]
         
-        # Csak a durvák maradnak, a "hülye, buta, paraszt" kivéve vagy enyhébb
+       
         self.BAD_WORDS_HARD = [
             r'\bkurva\b',
             r'baszd meg',
@@ -146,7 +146,7 @@ class Kamila(commands.Bot):
                 violations.append(f"Durva szó: {pattern}")
                 break
         
-        # Soft csak akkor számít ha ismételgeti, de most egyelőre csak logoljuk
+        
         for pattern in self.BAD_WORDS_SOFT:
             if re.search(pattern, content, re.IGNORECASE):
                 violations.append(f"Enyhe: {pattern}")
@@ -185,7 +185,7 @@ class Kamila(commands.Bot):
             await self.log_to_admin(f"⚠ **Figyelmeztetés {message.author.name}** ({current_warnings}/{self.WARNING_THRESHOLD}) - {', '.join(violations)} | Üzenet: `{message.content[:100]}`")
         
         else:
-            # Kick de NEM auto-ban vissza jövetelnél
+           
             self.kicked_users.add(user_id)
             save_data(self.user_warnings, self.kicked_users)
             try:
@@ -197,10 +197,10 @@ class Kamila(commands.Bot):
     
     async def on_member_join(self, member):
         try:
-            # SAFE: nem banolja auto, csak jelzi
+            
             if str(member.id) in self.kicked_users:
                 await self.log_to_admin(f"⚠ **Visszatérő {member.name}** - Korábban kickelve volt! Figyeljetek rá.")
-                # await member.ban -> KIVÉVE, most már nem banoljuk!
+                
             
             account_age_days = (datetime.datetime.now(datetime.timezone.utc) - member.created_at).days
             
@@ -212,7 +212,7 @@ class Kamila(commands.Bot):
             if not member.avatar:
                 flags.append("⚠ Nincs avatar")
 
-            # Csak akkor gyanús ha tényleg gyanús
+            
             is_suspicious = account_age_days < 1 and not member.avatar
             
             embed = discord.Embed(
