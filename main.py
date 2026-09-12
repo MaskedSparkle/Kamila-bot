@@ -99,7 +99,7 @@ class Kamila(commands.Bot):
         except: pass
 
         try:
-            
+           
             self.tree.clear_commands(guild=None)
             await self.tree.sync()
             print("🗑️ Global parancsok törölve - most újra regisztráljuk")
