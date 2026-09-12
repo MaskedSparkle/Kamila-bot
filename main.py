@@ -5,13 +5,14 @@ import datetime
 import re
 import os
 import json
+import traceback
 from flask import Flask
 import threading
 
 app_web = Flask(__name__)
 @app_web.route('/')
 def home():
-    return "Kamila is alive! 🛡 Safe Mode ON - Multi Server FIXED"
+    return "Kamila is alive! 🛡 Safe Mode ON - FIXED RESPONSE"
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
@@ -49,17 +50,9 @@ class Kamila(commands.Bot):
         super().__init__(command_prefix='!', intents=intents)
         self.WARNING_THRESHOLD = 3 
         self.guild_data = self.load_all_data()
-        self.NSFW_PATTERNS = [
-            r'\b(pornhub|onlyfans|xvideos|xnxx)\.com\b',
-            r'https?://\S*(pornhub|onlyfans|xvideos)\S*',
-        ]
-        self.BAD_WORDS_HARD = [
-            r'\bkurva\b', r'baszd meg', r'\bkurva anyád\b', r'\bkurva apád\b',
-            r'\banyád\b', r'\bköcsög\b', r'\bbuzi\b', r'\bbazmeg\b', r'\bribanc\b', r'\bgeci\b',
-        ]
-        self.BAD_WORDS_SOFT = [
-            r'\bhülye\b', r'\bidi[oó]ta?\b', r'\bbarom\b', r'\bparaszt\b', r'\bkussolj\b',
-        ]
+        self.NSFW_PATTERNS = [r'\b(pornhub|onlyfans|xvideos|xnxx)\.com\b', r'https?://\S*(pornhub|onlyfans|xvideos)\S*',]
+        self.BAD_WORDS_HARD = [r'\bkurva\b', r'baszd meg', r'\bkurva anyád\b', r'\bkurva apád\b', r'\banyád\b', r'\bköcsög\b', r'\bbuzi\b', r'\bbazmeg\b', r'\bribanc\b', r'\bgeci\b',]
+        self.BAD_WORDS_SOFT = [r'\bhülye\b', r'\bidi[oó]ta?\b', r'\bbarom\b', r'\bparaszt\b', r'\bkussolj\b',]
 
     def load_all_data(self):
         if os.path.exists(DATA_FILE):
@@ -73,7 +66,7 @@ class Kamila(commands.Bot):
                             raw[gid]["admin_channel"] = None
                     return raw
             except Exception as e:
-                print(f"Load error: {e}")
+                print(f"Load error: {e}\n{traceback.format_exc()}")
         return {}
 
     def save_all_data(self):
@@ -88,7 +81,7 @@ class Kamila(commands.Bot):
             with open(DATA_FILE, "w", encoding="utf-8") as f:
                 json.dump(to_save, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            print(f"Save error: {e}")
+            print(f"Save error: {e}\n{traceback.format_exc()}")
 
     def get_guild_data(self, guild_id):
         gid = str(guild_id)
@@ -106,28 +99,22 @@ class Kamila(commands.Bot):
         return None
 
     async def setup_hook(self):
-        
         self.tree.add_command(self.warnings_cmd)
         self.tree.add_command(self.clearwarnings_cmd)
         self.tree.add_command(self.statuscheck_cmd)
         self.tree.add_command(self.setlogchannel_cmd)
         self.tree.add_command(self.sync_cmd)
-
         try:
-           
             OLD_GUILD = discord.Object(id=1497272521735671810)
             self.tree.clear_commands(guild=OLD_GUILD)
             await self.tree.sync(guild=OLD_GUILD)
-            print("🗑️ Régi guild parancsok törölve")
-            
-            
             synced = await self.tree.sync()
-            print(f"✅ Global sync: {len(synced)} parancs minden szerveren! {', '.join([c.name for c in synced])}")
+            print(f"✅ Global sync: {len(synced)} parancs: {', '.join([c.name for c in synced])}")
         except Exception as e:
-            print(f"❌ Hiba szinkronizáláskor: {e}")
+            print(f"❌ Sync hiba: {e}\n{traceback.format_exc()}")
 
     async def on_ready(self):
-        print(f"🤖 {self.user.name} | {len(self.guilds)} szerveren | Safe Mode")
+        print(f"🤖 {self.user.name} | {len(self.guilds)} szerveren")
 
     async def on_message(self, message):
         if message.author == self.user or (hasattr(message.author, 'bot') and message.author.bot):
@@ -145,16 +132,13 @@ class Kamila(commands.Bot):
         violations = []
         for pattern in self.NSFW_PATTERNS:
             if re.search(pattern, content, re.IGNORECASE):
-                violations.append("NSFW link")
-                break
+                violations.append("NSFW link"); break
         for pattern in self.BAD_WORDS_HARD:
             if re.search(pattern, content, re.IGNORECASE):
-                violations.append(f"Durva szó: {pattern}")
-                break
+                violations.append(f"Durva szó"); break
         for pattern in self.BAD_WORDS_SOFT:
             if re.search(pattern, content, re.IGNORECASE):
-                violations.append(f"Enyhe: {pattern}")
-                break
+                violations.append(f"Enyhe"); break
         if len(content) > 800 or content.count('http') > 4 or len(message.mentions) > 5:
             violations.append("SPAM")
         if content.isupper() and len(content) > 80:
@@ -175,48 +159,36 @@ class Kamila(commands.Bot):
             pass
         if current_warnings < self.WARNING_THRESHOLD:
             try:
-                await message.channel.send(
-                    f"**⚠ {message.author.mention}, ez a(z) {current_warnings}. figyelmeztetésed! ({', '.join(violations)}) Ha eléred a {self.WARNING_THRESHOLD}-at, kick!**",
-                    delete_after=15
-                )
+                await message.channel.send(f"**⚠ {message.author.mention}, ez a(z) {current_warnings}. figyelmeztetésed! ({', '.join(violations)}) Ha eléred a {self.WARNING_THRESHOLD}-at, kick!**", delete_after=15)
             except:
                 pass
-            await self.log_to_admin(message.guild, f"⚠ **Figyelmeztetés {message.author.name}** ({current_warnings}/{self.WARNING_THRESHOLD}) - {', '.join(violations)} | `{message.content[:100]}`")
+            await self.log_to_admin(message.guild, f"⚠ **Figyelmeztetés {message.author.name}** ({current_warnings}/{self.WARNING_THRESHOLD}) - {', '.join(violations)}")
         else:
             gdata["kicked"].add(user_id)
             self.save_all_data()
             try:
-                await message.author.kick(reason=f"{self.WARNING_THRESHOLD}x szabálysértés: {', '.join(violations)}")
-                await message.channel.send(f"👢 **{message.author.name} kickelve lett {self.WARNING_THRESHOLD}x figyelmeztetés után.**", delete_after=20)
+                await message.author.kick(reason=f"{self.WARNING_THRESHOLD}x szabálysértés")
+                await message.channel.send(f"👢 **{message.author.name} kickelve**", delete_after=20)
             except Exception as e:
                 print(f"Kick hiba: {e}")
-            await self.log_to_admin(message.guild, f"👢 **KICKED {message.author.name}** ({current_warnings} warn) - {', '.join(violations)}")
-    
+            await self.log_to_admin(message.guild, f"👢 **KICKED {message.author.name}** ({current_warnings} warn)")
+
     async def on_member_join(self, member):
         try:
             gdata = self.get_guild_data(member.guild.id)
             if str(member.id) in gdata["kicked"]:
-                await self.log_to_admin(member.guild, f"⚠ **Visszatérő {member.name}** - Korábban kickelve volt!")
+                await self.log_to_admin(member.guild, f"⚠ **Visszatérő {member.name}** - Korábban kickelve!")
             account_age_days = (datetime.datetime.now(datetime.timezone.utc) - member.created_at).days
             flags = []
-            if account_age_days < 3:
-                flags.append(f"🔴 Nagyon új fiók ({account_age_days} nap)")
-            elif account_age_days < 7:
-                flags.append(f"🟡 Új fiók ({account_age_days} nap)")
-            if not member.avatar:
-                flags.append("⚠ Nincs avatar")
+            if account_age_days < 3: flags.append(f"🔴 Nagyon új fiók ({account_age_days} nap)")
+            elif account_age_days < 7: flags.append(f"🟡 Új fiók ({account_age_days} nap)")
+            if not member.avatar: flags.append("⚠ Nincs avatar")
             is_suspicious = account_age_days < 1 and not member.avatar
-            embed = discord.Embed(
-                title="👋 Új tag belépett",
-                color=discord.Color.red() if is_suspicious else discord.Color.green(),
-                timestamp=datetime.datetime.now(datetime.timezone.utc)
-            )
+            embed = discord.Embed(title="👋 Új tag belépett", color=discord.Color.red() if is_suspicious else discord.Color.green(), timestamp=datetime.datetime.now(datetime.timezone.utc))
             embed.add_field(name="Felhasználó", value=member.mention, inline=True)
             embed.add_field(name="Fiók kora", value=get_account_age_string(member.created_at), inline=True)
-            if flags:
-                embed.add_field(name="Megjegyzés", value="\n".join(flags), inline=False)
-            if member.avatar:
-                embed.set_thumbnail(url=member.avatar.url)
+            if flags: embed.add_field(name="Megjegyzés", value="\n".join(flags), inline=False)
+            if member.avatar: embed.set_thumbnail(url=member.avatar.url)
             await self.log_to_admin(member.guild, embed=embed)
         except Exception as e:
             print(f"Join error: {e}")
@@ -228,7 +200,7 @@ class Kamila(commands.Bot):
             gdata["kicked"].remove(user_id)
             self.save_all_data()
         await self.log_to_admin(guild, f"🔓 **{user.name}** unbanolva!")
-    
+
     async def log_to_admin(self, guild, message=None, embed=None):
         try:
             admin_channel_id = self.get_admin_channel_id(guild)
@@ -243,62 +215,107 @@ class Kamila(commands.Bot):
                     if "log" in c.name.lower() and c.permissions_for(guild.me).send_messages:
                         ch = c
                         break
-            if not ch:
-                return
-            if message:
-                await ch.send(message)
-            elif embed:
-                await ch.send(embed=embed)
+            if not ch: return
+            if message: await ch.send(message)
+            elif embed: await ch.send(embed=embed)
         except Exception as e:
             print(f"Log error: {e}")
 
-    # SLASH PARANCSOK - JAVÍTOTT REGISZTRÁCIÓ
+   
     @app_commands.command(name="warnings", description="Megnézi egy felhasználó figyelmeztetéseit")
     async def warnings_cmd(self, interaction: discord.Interaction, member: discord.Member = None):
-        gdata = self.get_guild_data(interaction.guild.id)
-        target = member or interaction.user
-        warn_count = gdata["warnings"].get(str(target.id), 0)
-        await interaction.response.send_message(f"**{target.name}: {warn_count}/{self.WARNING_THRESHOLD} figyelmeztetés ezen a szerveren**", ephemeral=True)
+        try:
+            await interaction.response.defer(ephemeral=True)
+            gdata = self.get_guild_data(interaction.guild.id)
+            target = member or interaction.user
+            warn_count = gdata["warnings"].get(str(target.id), 0)
+            await interaction.followup.send(f"**{target.name}: {warn_count}/{self.WARNING_THRESHOLD} figyelmeztetés ezen a szerveren**", ephemeral=True)
+        except Exception as e:
+            print(f"warnings hiba: {e}\n{traceback.format_exc()}")
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message("❌ Hiba történt!", ephemeral=True)
+                else:
+                    await interaction.followup.send("❌ Hiba történt!", ephemeral=True)
+            except: pass
     
     @app_commands.command(name="clearwarnings", description="Törli egy felhasználó figyelmeztetéseit")
     async def clearwarnings_cmd(self, interaction: discord.Interaction, member: discord.Member):
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ Nincs jogod!", ephemeral=True)
-            return
-        gdata = self.get_guild_data(interaction.guild.id)
-        gdata["warnings"][str(member.id)] = 0
-        if str(member.id) in gdata["kicked"]:
-            gdata["kicked"].remove(str(member.id))
-        self.save_all_data()
-        await interaction.response.send_message(f"✅ Törölve {member.name} figyelmeztetései")
+        try:
+            await interaction.response.defer()
+            if not interaction.user.guild_permissions.administrator:
+                await interaction.followup.send("❌ Nincs jogod!", ephemeral=True)
+                return
+            gdata = self.get_guild_data(interaction.guild.id)
+            gdata["warnings"][str(member.id)] = 0
+            if str(member.id) in gdata["kicked"]:
+                gdata["kicked"].remove(str(member.id))
+            self.save_all_data()
+            await interaction.followup.send(f"✅ Törölve {member.name} figyelmeztetései")
+        except Exception as e:
+            print(f"clearwarnings hiba: {e}\n{traceback.format_exc()}")
+            try:
+                await interaction.followup.send(f"❌ Hiba: {e}", ephemeral=True)
+            except: pass
     
     @app_commands.command(name="statuscheck", description="Bot státusz")
     async def statuscheck_cmd(self, interaction: discord.Interaction):
-        gdata = self.get_guild_data(interaction.guild.id)
-        embed = discord.Embed(title="🤖 Kamila Safe Status - Multi Server", color=discord.Color.purple())
-        embed.add_field(name="Szerver", value=interaction.guild.name, inline=False)
-        embed.add_field(name="Figyelt userek (itt)", value=len(gdata["warnings"]), inline=True)
-        embed.add_field(name="Kick memória (itt)", value=len(gdata["kicked"]), inline=True)
-        embed.add_field(name="Összes szerver", value=len(self.guilds), inline=True)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        try:
+            await interaction.response.defer(ephemeral=True)
+            gdata = self.get_guild_data(interaction.guild.id)
+            embed = discord.Embed(title="🤖 Kamila Safe Status", color=discord.Color.purple())
+            embed.add_field(name="Szerver", value=interaction.guild.name, inline=False)
+            embed.add_field(name="Figyelt userek", value=len(gdata["warnings"]), inline=True)
+            embed.add_field(name="Kick memória", value=len(gdata["kicked"]), inline=True)
+            embed.add_field(name="Összes szerver", value=len(self.guilds), inline=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        except Exception as e:
+            print(f"statuscheck hiba: {e}\n{traceback.format_exc()}")
+            try:
+                await interaction.followup.send(f"❌ Hiba: {e}", ephemeral=True)
+            except: pass
 
     @app_commands.command(name="setlogchannel", description="Beállítja a log csatornát ezen a szerveren")
     async def setlogchannel_cmd(self, interaction: discord.Interaction, channel: discord.TextChannel):
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ Nincs jogod!", ephemeral=True)
-            return
-        gdata = self.get_guild_data(interaction.guild.id)
-        gdata["admin_channel"] = channel.id
-        self.save_all_data()
-        await interaction.response.send_message(f"✅ Log csatorna beállítva: {channel.mention}", ephemeral=True)
+        try:
+            
+            await interaction.response.defer(ephemeral=True)
+            
+            if not interaction.user.guild_permissions.administrator:
+                await interaction.followup.send("❌ Nincs jogod!", ephemeral=True)
+                return
+            
+            
+            gdata = self.get_guild_data(interaction.guild.id)
+            gdata["admin_channel"] = channel.id
+            self.save_all_data()
+            
+            await interaction.followup.send(f"✅ Log csatorna beállítva: {channel.mention} | Szerver: {interaction.guild.name}", ephemeral=True)
+            print(f"✅ Log channel set: {interaction.guild.name} -> {channel.name}")
+            
+        except Exception as e:
+            print(f"setlogchannel HIBA: {e}\n{traceback.format_exc()}")
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(f"❌ Hiba: {e}", ephemeral=True)
+                else:
+                    await interaction.followup.send(f"❌ Hiba: {e}", ephemeral=True)
+            except: pass
 
-    @app_commands.command(name="sync", description="Manuálisan sync-eli a slash parancsokat (owner only)")
+    @app_commands.command(name="sync", description="Manuálisan sync-eli a slash parancsokat")
     async def sync_cmd(self, interaction: discord.Interaction):
-        if interaction.user.id != 1047920915641548921:
-            await interaction.response.send_message("❌ Csak a tulaj használhatja!", ephemeral=True)
-            return
-        synced = await self.tree.sync()
-        await interaction.response.send_message(f"✅ {len(synced)} parancs syncelve globálisan!", ephemeral=True)
+        try:
+            await interaction.response.defer(ephemeral=True)
+            if interaction.user.id != 1047920915641548921:
+                await interaction.followup.send("❌ Csak a tulaj!", ephemeral=True)
+                return
+            synced = await self.tree.sync()
+            await interaction.followup.send(f"✅ {len(synced)} parancs syncelve!", ephemeral=True)
+        except Exception as e:
+            print(f"sync hiba: {e}")
+            try:
+                await interaction.followup.send(f"❌ Hiba: {e}", ephemeral=True)
+            except: pass
 
 if __name__ == "__main__":
     bot = Kamila()
