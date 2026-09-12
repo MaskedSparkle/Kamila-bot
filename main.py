@@ -1,4 +1,4 @@
-mport discord
+import discord
 from discord import app_commands
 from discord.ext import commands
 import os, json, traceback, re, asyncio, threading, datetime
