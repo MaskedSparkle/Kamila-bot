@@ -8,11 +8,10 @@ import json
 from flask import Flask
 import threading
 
-
 app_web = Flask(__name__)
 @app_web.route('/')
 def home():
-    return "Kamila is alive! 🛡 Safe Mode ON"
+    return "Kamila is alive! 🛡 Safe Mode ON - Multi Server"
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
@@ -20,27 +19,7 @@ def run_web():
 
 threading.Thread(target=run_web, daemon=True).start()
 
-
-
 DATA_FILE = "kamila_data.json"
-
-def load_data():
-    if os.path.exists(DATA_FILE):
-        try:
-            with open(DATA_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                return data.get("warnings", {}), set(data.get("kicked", []))
-        except:
-            pass
-    return {}, set()
-
-def save_data(warnings, kicked):
-    try:
-        with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump({"warnings": warnings, "kicked": list(kicked)}, f)
-    except Exception as e:
-        print(f"Save error: {e}")
-
 
 def get_account_age_string(created_at):
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -70,20 +49,16 @@ class Kamila(commands.Bot):
         
         super().__init__(command_prefix='!', intents=intents)
         
-        self.ADMIN_CHANNEL_ID = 1497294782786048020
         self.WARNING_THRESHOLD = 3 
         
-        warnings, kicked = load_data()
-        self.user_warnings = warnings
-        self.kicked_users = kicked
+        # TÖBB SZERVERES ADATKEZELÉS
+        self.guild_data = self.load_all_data()
+        # Struktúra: { "guild_id": {"warnings": {}, "kicked": set(), "admin_channel": id} }
         
-       
         self.NSFW_PATTERNS = [
             r'\b(pornhub|onlyfans|xvideos|xnxx)\.com\b',
             r'https?://\S*(pornhub|onlyfans|xvideos)\S*',
         ]
-        
-       
         self.BAD_WORDS_HARD = [
             r'\bkurva\b',
             r'baszd meg',
@@ -96,7 +71,6 @@ class Kamila(commands.Bot):
             r'\bribanc\b',
             r'\bgeci\b',
         ]
-        
         self.BAD_WORDS_SOFT = [
             r'\bhülye\b',
             r'\bidi[oó]ta?\b',
@@ -104,27 +78,71 @@ class Kamila(commands.Bot):
             r'\bparaszt\b',
             r'\bkussolj\b',
         ]
-        
-        self.suspicious_users = []
-    
+
+    def load_all_data(self):
+        if os.path.exists(DATA_FILE):
+            try:
+                with open(DATA_FILE, "r", encoding="utf-8") as f:
+                    raw = json.load(f)
+                    # set konvertálás
+                    for gid in raw:
+                        raw[gid]["kicked"] = set(raw[gid].get("kicked", []))
+                        raw[gid]["warnings"] = raw[gid].get("warnings", {})
+                        if "admin_channel" not in raw[gid]:
+                            raw[gid]["admin_channel"] = None
+                    return raw
+            except Exception as e:
+                print(f"Load error: {e}")
+        return {}
+
+    def save_all_data(self):
+        try:
+            to_save = {}
+            for gid, data in self.guild_data.items():
+                to_save[gid] = {
+                    "warnings": data.get("warnings", {}),
+                    "kicked": list(data.get("kicked", set())),
+                    "admin_channel": data.get("admin_channel")
+                }
+            with open(DATA_FILE, "w", encoding="utf-8") as f:
+                json.dump(to_save, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"Save error: {e}")
+
+    def get_guild_data(self, guild_id):
+        gid = str(guild_id)
+        if gid not in self.guild_data:
+            self.guild_data[gid] = {"warnings": {}, "kicked": set(), "admin_channel": None}
+        return self.guild_data[gid]
+
+    def get_admin_channel_id(self, guild):
+        # Ha van mentve, azt használja
+        gdata = self.get_guild_data(guild.id)
+        if gdata.get("admin_channel"):
+            return gdata["admin_channel"]
+        # Ha nincs, megpróbálja megtalálni
+        for ch in guild.text_channels:
+            if ch.name.lower() in ["logs", "log", "admin", "admin-log", "mod-log", "kamila-log"]:
+                return ch.id
+        # Ha semmi, az első ahol tud írni
+        return None
+
     async def setup_hook(self):
         try:
-            GUILD_ID = discord.Object(id=1497272521735671810)
-            self.tree.copy_global_to(guild=GUILD_ID)
-            synced = await self.tree.sync(guild=GUILD_ID)
-            print(f"✅ Sikeresen szinkronizálva {len(synced)} parancs!")
+            # GLOBAL SYNC - minden szerveren megjelenik, nem csak egyre
+            synced = await self.tree.sync()
+            print(f"✅ Global sync: {len(synced)} parancs minden szerveren!")
         except Exception as e:
             print(f"❌ Hiba szinkronizáláskor: {e}")
 
     async def on_ready(self):
-        print(f"🤖 Bejelentkezve mint: {self.user.name} (ID: {self.user.id}) | Safe Mode")
+        print(f"🤖 Bejelentkezve mint: {self.user.name} (ID: {self.user.id}) | {len(self.guilds)} szerveren | Safe Mode")
 
     async def on_message(self, message):
         if message.author == self.user or (hasattr(message.author, 'bot') and message.author.bot):
             return
         if not message.guild:
             return
-        # Admin + mod bypass
         if message.author.guild_permissions.administrator or message.author.guild_permissions.manage_messages:
             return
         
@@ -146,7 +164,6 @@ class Kamila(commands.Bot):
                 violations.append(f"Durva szó: {pattern}")
                 break
         
-        
         for pattern in self.BAD_WORDS_SOFT:
             if re.search(pattern, content, re.IGNORECASE):
                 violations.append(f"Enyhe: {pattern}")
@@ -161,13 +178,14 @@ class Kamila(commands.Bot):
         return violations
     
     async def handle_violation(self, message, violations):
+        gdata = self.get_guild_data(message.guild.id)
         user_id = str(message.author.id)
         
-        if user_id not in self.user_warnings:
-            self.user_warnings[user_id] = 0
-        self.user_warnings[user_id] += 1
-        current_warnings = self.user_warnings[user_id]
-        save_data(self.user_warnings, self.kicked_users)
+        if user_id not in gdata["warnings"]:
+            gdata["warnings"][user_id] = 0
+        gdata["warnings"][user_id] += 1
+        current_warnings = gdata["warnings"][user_id]
+        self.save_all_data()
         
         try:
             await message.delete()
@@ -182,25 +200,24 @@ class Kamila(commands.Bot):
                 )
             except:
                 pass
-            await self.log_to_admin(f"⚠ **Figyelmeztetés {message.author.name}** ({current_warnings}/{self.WARNING_THRESHOLD}) - {', '.join(violations)} | Üzenet: `{message.content[:100]}`")
+            await self.log_to_admin(message.guild, f"⚠ **Figyelmeztetés {message.author.name}** ({current_warnings}/{self.WARNING_THRESHOLD}) - {', '.join(violations)} | Üzenet: `{message.content[:100]}`")
         
         else:
-           
-            self.kicked_users.add(user_id)
-            save_data(self.user_warnings, self.kicked_users)
+            gdata["kicked"].add(user_id)
+            self.save_all_data()
             try:
                 await message.author.kick(reason=f"{self.WARNING_THRESHOLD}x szabálysértés: {', '.join(violations)}")
                 await message.channel.send(f"👢 **{message.author.name} kickelve lett {self.WARNING_THRESHOLD}x figyelmeztetés után.**", delete_after=20)
             except Exception as e:
                 print(f"Kick hiba: {e}")
-            await self.log_to_admin(f"👢 **KICKED {message.author.name}** ({current_warnings} warn) - {', '.join(violations)}")
+            await self.log_to_admin(message.guild, f"👢 **KICKED {message.author.name}** ({current_warnings} warn) - {', '.join(violations)}")
     
     async def on_member_join(self, member):
         try:
+            gdata = self.get_guild_data(member.guild.id)
             
-            if str(member.id) in self.kicked_users:
-                await self.log_to_admin(f"⚠ **Visszatérő {member.name}** - Korábban kickelve volt! Figyeljetek rá.")
-                
+            if str(member.id) in gdata["kicked"]:
+                await self.log_to_admin(member.guild, f"⚠ **Visszatérő {member.name}** - Korábban kickelve volt! Figyeljetek rá.")
             
             account_age_days = (datetime.datetime.now(datetime.timezone.utc) - member.created_at).days
             
@@ -212,7 +229,6 @@ class Kamila(commands.Bot):
             if not member.avatar:
                 flags.append("⚠ Nincs avatar")
 
-            
             is_suspicious = account_age_days < 1 and not member.avatar
             
             embed = discord.Embed(
@@ -227,21 +243,35 @@ class Kamila(commands.Bot):
             if member.avatar:
                 embed.set_thumbnail(url=member.avatar.url)
             
-            await self.log_to_admin(embed=embed)
+            await self.log_to_admin(member.guild, embed=embed)
         
         except Exception as e:
             print(f"Join error: {e}")
 
     async def on_member_unban(self, guild, user):
+        gdata = self.get_guild_data(guild.id)
         user_id = str(user.id)
-        if user_id in self.kicked_users:
-            self.kicked_users.remove(user_id)
-            save_data(self.user_warnings, self.kicked_users)
-        await self.log_to_admin(f"🔓 **{user.name}** unbanolva, újra beléphet!")
+        if user_id in gdata["kicked"]:
+            gdata["kicked"].remove(user_id)
+            self.save_all_data()
+        await self.log_to_admin(guild, f"🔓 **{user.name}** unbanolva, újra beléphet!")
     
-    async def log_to_admin(self, message=None, embed=None):
+    async def log_to_admin(self, guild, message=None, embed=None):
         try:
-            ch = self.get_channel(self.ADMIN_CHANNEL_ID)
+            admin_channel_id = self.get_admin_channel_id(guild)
+            if not admin_channel_id:
+                # Ha nincs log csatorna, keress egyet ahol tud írni
+                for ch in guild.text_channels:
+                    if ch.permissions_for(guild.me).send_messages:
+                        admin_channel_id = ch.id
+                        break
+            ch = self.get_channel(admin_channel_id) if admin_channel_id else None
+            if not ch:
+                # próbáld meg guild-ből
+                for c in guild.text_channels:
+                    if "log" in c.name.lower() and c.permissions_for(guild.me).send_messages:
+                        ch = c
+                        break
             if not ch:
                 return
             if message:
@@ -251,31 +281,46 @@ class Kamila(commands.Bot):
         except Exception as e:
             print(f"Log error: {e}")
 
-    # SLASH PARANCSOK
+    # SLASH PARANCSOK - MOST MÁR MINDEN SZERVEREN MŰKÖDNEK
     @app_commands.command(name="warnings", description="Megnézi egy felhasználó figyelmeztetéseit")
     async def warnings(self, interaction: discord.Interaction, member: discord.Member = None):
+        gdata = self.get_guild_data(interaction.guild.id)
         target = member or interaction.user
-        warn_count = self.user_warnings.get(str(target.id), 0)
-        await interaction.response.send_message(f"**{target.name}: {warn_count}/{self.WARNING_THRESHOLD} figyelmeztetés**", ephemeral=True)
+        warn_count = gdata["warnings"].get(str(target.id), 0)
+        await interaction.response.send_message(f"**{target.name}: {warn_count}/{self.WARNING_THRESHOLD} figyelmeztetés ezen a szerveren**", ephemeral=True)
     
     @app_commands.command(name="clearwarnings", description="Törli egy felhasználó figyelmeztetéseit")
     async def clearwarnings(self, interaction: discord.Interaction, member: discord.Member):
         if not interaction.user.guild_permissions.administrator:
             await interaction.response.send_message("❌ Nincs jogod!", ephemeral=True)
             return
-        self.user_warnings[str(member.id)] = 0
-        if str(member.id) in self.kicked_users:
-            self.kicked_users.remove(str(member.id))
-        save_data(self.user_warnings, self.kicked_users)
-        await interaction.response.send_message(f"✅ Törölve {member.name} figyelmeztetései")
+        gdata = self.get_guild_data(interaction.guild.id)
+        gdata["warnings"][str(member.id)] = 0
+        if str(member.id) in gdata["kicked"]:
+            gdata["kicked"].remove(str(member.id))
+        self.save_all_data()
+        await interaction.response.send_message(f"✅ Törölve {member.name} figyelmeztetései ezen a szerveren")
     
     @app_commands.command(name="statuscheck", description="Bot státusz")
     async def statuscheck(self, interaction: discord.Interaction):
-        embed = discord.Embed(title="🤖 Kamila Safe Status", color=discord.Color.purple())
-        embed.add_field(name="Figyelt userek", value=len(self.user_warnings), inline=True)
-        embed.add_field(name="Kick memória", value=len(self.kicked_users), inline=True)
-        embed.add_field(name="Mód", value="SAFE - nincs auto-ban", inline=True)
+        gdata = self.get_guild_data(interaction.guild.id)
+        embed = discord.Embed(title="🤖 Kamila Safe Status - Multi Server", color=discord.Color.purple())
+        embed.add_field(name="Szerver", value=interaction.guild.name, inline=False)
+        embed.add_field(name="Figyelt userek (itt)", value=len(gdata["warnings"]), inline=True)
+        embed.add_field(name="Kick memória (itt)", value=len(gdata["kicked"]), inline=True)
+        embed.add_field(name="Összes szerver", value=len(self.guilds), inline=True)
+        embed.add_field(name="Mód", value="SAFE - Multi Server", inline=True)
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="setlogchannel", description="Beállítja a log csatornát ezen a szerveren")
+    async def setlogchannel(self, interaction: discord.Interaction, channel: discord.TextChannel):
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ Nincs jogod!", ephemeral=True)
+            return
+        gdata = self.get_guild_data(interaction.guild.id)
+        gdata["admin_channel"] = channel.id
+        self.save_all_data()
+        await interaction.response.send_message(f"✅ Log csatorna beállítva: {channel.mention}", ephemeral=True)
 
 if __name__ == "__main__":
     bot = Kamila()
