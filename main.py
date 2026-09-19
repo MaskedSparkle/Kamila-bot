@@ -124,7 +124,7 @@ class Kamila(commands.Bot):
 
     async def get_bridge_channel(self, guild):
         """Megkeresi a bridge/log csatornát ahol szólni tud Jasmine-nak"""
-        # 1. admin_channel
+        
         gdata=self.get_guild_data(guild.id)
         cid=gdata.get("admin_channel")
         if cid:
@@ -136,7 +136,7 @@ class Kamila(commands.Bot):
                 if name in ch.name.lower():
                     if ch.permissions_for(guild.me).send_messages:
                         return ch
-        # 3. első ahol tud írni
+        
         for ch in guild.text_channels:
             if ch.permissions_for(guild.me).send_messages:
                 return ch
@@ -156,11 +156,11 @@ class Kamila(commands.Bot):
             if member.top_role >= interaction.guild.me.top_role:
                 await interaction.followup.send("❌ Bot rangja alacsonyabb!", ephemeral=True); return
 
-            # DISCORD BRIDGE - szólunk Jasmine-nak
+            
             bridge_ch = await self.get_bridge_channel(interaction.guild)
             if bridge_ch:
                 try:
-                    # Titkos jel Jasmine-nak - ezt csak a botok értik
+                    
                     await bridge_ch.send(f"BRIDGE_BAN|{interaction.guild.id}|{member.id}|{reason}|{interaction.user.name}")
                     print(f"🌉 DISCORD BRIDGE elküldve: {member.name} -> {bridge_ch.name} | várok 3mp-et hogy Jasmine DM-eljen")
                 except Exception as e:
@@ -168,7 +168,7 @@ class Kamila(commands.Bot):
 
             await interaction.followup.send(f"⏳ {member.name} bannolása... Jasmine küldi a DM-et az utolsó pillanatban! (3mp) | Indok: {reason}")
             
-            # Várunk 3mp-et hogy Jasmine el tudja küldeni a DM-et amíg még a szerveren van!
+           
             await asyncio.sleep(3)
 
             try:
@@ -201,7 +201,7 @@ class Kamila(commands.Bot):
             except Exception as e:
                 await interaction.followup.send(f"❌ {e}", ephemeral=True)
 
-        # TÖBBI PARANCS VÁLTOZATLAN
+       
         @self.tree.command(name="timeout", description="Timeout")
         @app_commands.describe(member="Kit", duration="Idő pl 10m, 1h", reason="Indok")
         async def timeout(interaction: discord.Interaction, member: discord.Member, duration: str, reason: str = "Nincs indok"):
